@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Users — AK Cleaning</title>
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/panel/css/panel.css" />
+  <link rel="stylesheet" href="/panel/clients/css/clients.css" />
+  <style>
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--color-accent);
+      color: #fff; font-weight: 700; font-size: var(--text-sm);
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-right: 10px; text-transform: uppercase;
+    }
+    .user-cell { display: flex; align-items: center; }
+    .user-info small { display: block; color: var(--color-text-soft); font-size: var(--text-xs); margin-top: 1px; }
+  </style>
+</head>
+<body>
+
+<div id="panel-shell"></div>
+
+<div id="page-content">
+  <div x-data="usersPage()" x-init="init()" class="content-inner">
+
+    <!-- ── Toolbar ── -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-box">
+          <i data-lucide="search"></i>
+          <input type="text" placeholder="Search by name or email…"
+            x-model="busqueda" @input.debounce.300ms="filtrar()" />
+        </div>
+
+        <select class="select" x-model="filtroRol" @change="filtrar()">
+          <option value="all">All Roles</option>
+          <option value="owner">Owner</option>
+          <option value="admin">Admin</option>
+          <option value="compras">Compras</option>
+          <option value="empleada">Empleada</option>
+          <option value="proveedor">Proveedor</option>
+          <option value="superadmin">Superadmin</option>
+        </select>
+
+        <select class="select" x-model="filtroEstado" @change="filtrar()">
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Last Login</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <template x-if="cargando">
+            <template x-for="i in 5" :key="i">
+              <tr>
+                <td><div class="skeleton" style="width:140px;height:14px"></div></td>
+                <td><div class="skeleton" style="width:180px;height:14px"></div></td>
+                <td><div class="skeleton" style="width:80px;height:20px;border-radius:12px"></div></td>
+                <td><div class="skeleton" style="width:60px;height:20px;border-radius:12px"></div></td>
+                <td><div class="skeleton" style="width:100px;height:14px"></div></td>
+                <td></td>
+              </tr>
+            </template>
+          </template>
+
+          <template x-if="!cargando && usuariosFiltrados.length === 0">
+            <tr>
+              <td colspan="6" class="empty-state">
+                <i data-lucide="shield-check"></i>
+                <p>No users match your filters.</p>
+              </td>
+            </tr>
+          </template>
+
+          <template x-if="!cargando && usuariosFiltrados.length > 0">
+            <template x-for="u in usuariosFiltrados" :key="u.id">
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-avatar" x-text="initiales(u)"></div>
+                    <div class="user-info">
+                      <span class="font-medium" x-text="u.nombre || '—'"></span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="text-muted text-sm" x-text="u.email || '—'"></span></td>
+                <td>
+                  <span class="badge badge-type-individual" x-text="u.rol || '—'"></span>
+                </td>
+                <td>
+                  <span class="badge" :class="u.activo ? 'badge-status-active' : 'badge-status-inactive'"
+                    x-text="u.activo ? 'Active' : 'Inactive'"></span>
+                </td>
+                <td>
+                  <span class="text-muted text-sm" x-text="u.ultimo_login ? formatearFecha(u.ultimo_login) : 'Never'"></span>
+                </td>
+                <td>
+                  <div class="row-actions">
+                    <button
+                      class="btn-icon"
+                      :class="u.activo ? 'btn-icon-danger' : ''"
+                      :title="u.activo ? 'Deactivate' : 'Activate'"
+                      @click="confirmarToggle(u)"
+                      :disabled="u.id === usuarioActualId"
+                    >
+                      <i :data-lucide="u.activo ? 'user-x' : 'user-check'"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </template>
+
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-muted text-sm" style="margin-top:var(--space-md);text-align:center">
+      To add new staff members, use the <a href="/panel/staff/" class="text-accent">Staff</a> module.
+    </p>
+
+  </div>
+</div>
+
+<div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+
+<script type="module">
+  import { iniciarPanel }     from '/panel/js/panel-shell.js';
+  import { supabase }         from '/js/supabase-client.js';
+
+  window.usersPage = function () {
+    return {
+      usuarios: [], usuariosFiltrados: [], cargando: true,
+      busqueda: '', filtroRol: 'all', filtroEstado: 'all',
+      usuarioActualId: null,
+
+      async init() {
+        // Get current user id
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: me } = await supabase.from('usuarios').select('id').eq('auth_id', user.id).single();
+          this.usuarioActualId = me?.id;
+        }
+        await this.cargar();
+      },
+
+      async cargar() {
+        this.cargando = true;
+        const { data, error } = await supabase
+          .from('usuarios')
+          .select('*')
+          .order('nombre', { ascending: true });
+        if (!error) this.usuarios = data || [];
+        this.cargando = false;
+        this.filtrar();
+        this.$nextTick(() => window.lucide?.createIcons());
+      },
+
+      filtrar() {
+        let lista = [...this.usuarios];
+        if (this.busqueda) {
+          const q = this.busqueda.toLowerCase();
+          lista = lista.filter(u =>
+            (u.nombre || '').toLowerCase().includes(q) ||
+            (u.email  || '').toLowerCase().includes(q)
+          );
+        }
+        if (this.filtroRol !== 'all')    lista = lista.filter(u => u.rol === this.filtroRol);
+        if (this.filtroEstado === 'active')   lista = lista.filter(u => u.activo);
+        if (this.filtroEstado === 'inactive') lista = lista.filter(u => !u.activo);
+        this.usuariosFiltrados = lista;
+      },
+
+      confirmarToggle(u) {
+        if (u.id === this.usuarioActualId) return;
+        const accion = u.activo ? 'deactivate' : 'activate';
+        if (!confirm(`${accion.charAt(0).toUpperCase() + accion.slice(1)} user "${u.email}"?`)) return;
+        this._toggle(u.id, !u.activo);
+      },
+      async _toggle(id, activo) {
+        const { error } = await supabase.from('usuarios').update({ activo }).eq('id', id);
+        if (error) { this.mostrarToast('Error updating user.', 'error'); return; }
+        this.mostrarToast(activo ? 'User activated.' : 'User deactivated.', 'success');
+        await this.cargar();
+      },
+
+      initiales(u) {
+        if (u.nombre) return u.nombre.charAt(0);
+        if (u.email)  return u.email.charAt(0);
+        return '?';
+      },
+      formatearFecha(iso) {
+        if (!iso) return 'Never';
+        return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      },
+
+      mostrarToast(msg, tipo = 'success') {
+        const cont = document.getElementById('toast-container');
+        if (!cont) return;
+        const t = document.createElement('div');
+        t.className = `toast toast-${tipo}`;
+        t.textContent = msg;
+        cont.appendChild(t);
+        setTimeout(() => t.classList.add('toast-visible'), 10);
+        setTimeout(() => { t.classList.remove('toast-visible'); setTimeout(() => t.remove(), 300); }, 3500);
+      },
+    };
+  };
+
+  await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js');
+
+  (async () => {
+    await iniciarPanel({
+      rolesPermitidos: ['superadmin', 'owner'],
+      itemActivo: 'users',
+      tituloHeader: 'Users',
+    });
+  })();
+</script>
+
+</body>
+</html>

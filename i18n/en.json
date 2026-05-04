@@ -1,0 +1,19 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "error_generic": "Something went wrong. Please try again."
+  },
+  "auth": {
+    "sign_in": "Sign In",
+    "sign_out": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "forgot_password": "Forgot password?",
+    "reset_password": "Reset Password",
+    "back_to_login": "Back to login",
+    "reset_email_sent": "Check your email for a reset link",
+    "welcome": "Welcome back"
+  }
+}

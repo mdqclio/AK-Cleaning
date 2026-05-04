@@ -1,0 +1,212 @@
+/* panel/services/css/services.css
+   Cards visuales en lugar de tabla. */
+
+/* ─── Grid de cards ─────────────────────────────────── */
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-md);
+}
+
+/* ─── Card individual ───────────────────────────────── */
+.service-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+.service-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--color-accent);
+}
+.service-card.inactive { opacity: 0.5; }
+
+.service-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+.service-card-name { flex: 1; }
+.service-card-name h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  color: var(--color-primary);
+  margin: 0 0 4px 0;
+}
+.service-card-name small {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  font-style: italic;
+}
+
+.service-card-actions {
+  display: flex;
+  gap: 4px;
+}
+.service-card-actions button {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: var(--color-bg);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+.service-card-actions button:hover {
+  background: var(--color-divider);
+  color: var(--color-primary);
+}
+.service-card-actions svg { width: 14px; height: 14px; }
+
+/* ─── Meta badges ───────────────────────────────────── */
+.service-card-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.badge-category {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(201, 168, 76, 0.15);
+  color: var(--color-primary);
+}
+.badge-tax {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: #f5ebe0;
+  color: #7a5a10;
+}
+.badge-tax svg { width: 11px; height: 11px; }
+.badge-external {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: #e8f0f5;
+  color: #1a3a5c;
+}
+.badge-external svg { width: 11px; height: 11px; }
+
+/* ─── Precio en card ────────────────────────────────── */
+.service-card-price {
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.service-card-price-amount {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.service-card-price-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+.service-card-no-price {
+  font-size: var(--text-xs);
+  color: #d97706;
+  font-weight: 500;
+}
+
+/* ─── Historial de tarifas en modal ─────────────────── */
+.rate-history { margin-top: var(--space-md); }
+.rate-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  font-size: var(--text-sm);
+}
+.rate-row.current {
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid var(--color-accent);
+}
+.rate-row-info { display: flex; flex-direction: column; gap: 2px; }
+.rate-row-price { font-weight: 600; color: var(--color-primary); }
+.rate-row-dates { font-size: var(--text-xs); color: var(--color-text-soft); }
+.rate-row-actions { display: flex; gap: 4px; }
+.rate-row-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color var(--transition-fast);
+}
+.rate-row-actions button:hover { color: var(--color-danger); }
+.rate-row-actions svg { width: 14px; height: 14px; }
+
+/* ─── Formulario de nueva tarifa ────────────────────── */
+.add-rate-form {
+  background: var(--color-bg);
+  padding: var(--space-md);
+  border-radius: var(--radius);
+  margin-top: var(--space-sm);
+  border: 1px solid var(--color-border);
+}
+
+/* ─── Toggle row (reutilizado de providers) ─────────── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--space-sm);
+}
+.toggle-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.toggle-row label {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+/* ─── Form grid de 3 columnas ───────────────────────── */
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+@media (max-width: 640px) {
+  .form-grid-3 { grid-template-columns: 1fr; }
+  .services-grid { grid-template-columns: 1fr; }
+}

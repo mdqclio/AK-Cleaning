@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Services Catalog · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/panel/css/panel.css">
+  <link rel="stylesheet" href="/panel/clients/css/clients.css">
+  <link rel="stylesheet" href="./css/services.css">
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="header" id="header"></header>
+
+      <div class="content">
+        <div class="clients-page" x-data="servicesPage()" x-init="init()" x-cloak>
+
+          <!-- ─── Toolbar ──────────────────────────── -->
+          <div class="clients-toolbar">
+            <div class="clients-search">
+              <i data-lucide="search"></i>
+              <input type="text" placeholder="Search by name (English or Spanish)…"
+                     x-model="busqueda" @input.debounce.300ms="recargar()">
+            </div>
+            <select x-model="filtroCategoria" @change="recargar()">
+              <option value="all">All categories</option>
+              <template x-for="c in categorias" :key="c.value">
+                <option :value="c.value" x-text="c.label"></option>
+              </template>
+            </select>
+            <select x-model="filtroEstado" @change="recargar()">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <button class="btn btn-primary btn-new" @click="abrirNuevo()">
+              <i data-lucide="plus"></i>
+              New Service
+            </button>
+          </div>
+
+          <!-- ─── Loading ──────────────────────────── -->
+          <template x-if="cargando">
+            <div class="services-grid">
+              <template x-for="i in 6" :key="i">
+                <div class="service-card">
+                  <span class="skeleton-bar" style="width:70%;height:20px;margin-bottom:8px"></span>
+                  <span class="skeleton-bar" style="width:50%;margin-bottom:16px"></span>
+                  <span class="skeleton-bar" style="width:40%"></span>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- ─── Vacío ────────────────────────────── -->
+          <template x-if="!cargando && servicios.length === 0">
+            <div class="empty-state">
+              <i data-lucide="layers"></i>
+              <h3>No services found</h3>
+              <p x-text="busqueda ? 'No results match your search.' : 'Get started by adding your first service.'"></p>
+            </div>
+          </template>
+
+          <!-- ─── Grid de cards ────────────────────── -->
+          <div class="services-grid" x-show="!cargando && servicios.length > 0">
+            <template x-for="s in servicios" :key="s.id">
+              <div class="service-card" :class="!s.activo ? 'inactive' : ''" @click="abrirEditar(s.id)">
+
+                <div class="service-card-header">
+                  <div class="service-card-name">
+                    <h3 x-text="s.nombre_en"></h3>
+                    <small x-text="s.nombre_es"></small>
+                  </div>
+                  <div class="service-card-actions" @click.stop>
+                    <button @click="abrirEditar(s.id)" title="Edit">
+                      <i data-lucide="pencil"></i>
+                    </button>
+                    <button @click="confirmarToggle(s)" :title="s.activo ? 'Deactivate' : 'Activate'">
+                      <i :data-lucide="s.activo ? 'archive' : 'archive-restore'"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="service-card-meta">
+                  <span class="badge-category" x-text="catLabel(s.categoria)"></span>
+                  <span class="badge-tax" x-show="s.taxable" title="Subject to FL sales tax">
+                    <i data-lucide="receipt"></i> Taxable
+                  </span>
+                  <span class="badge-external" x-show="s.requiere_proveedor_externo" title="Requires external provider">
+                    <i data-lucide="briefcase"></i> External
+                  </span>
+                </div>
+
+                <div class="service-card-price">
+                  <template x-if="s.tarifa_vigente">
+                    <span class="service-card-price-amount" x-text="fmtPrecio(s.tarifa_vigente)"></span>
+                  </template>
+                  <template x-if="!s.tarifa_vigente">
+                    <span class="service-card-no-price">⚠ No price set</span>
+                  </template>
+                  <span class="service-card-price-label">Current rate</span>
+                </div>
+
+              </div>
+            </template>
+          </div>
+
+
+          <!-- ════════════════════════════════════════
+               MODAL: Crear / Editar Service
+          ════════════════════════════════════════ -->
+          <div class="modal-overlay" x-show="modalAbierto" @click.self="cerrarModal()" x-cloak>
+            <div class="modal-form">
+
+              <div class="modal-header">
+                <h2 x-text="formData.id ? 'Edit Service' : 'New Service'"></h2>
+                <button class="modal-close" @click="cerrarModal()">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+
+                <!-- Basic info -->
+                <div class="form-section">
+                  <h3><i data-lucide="info"></i> Service Information</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Name (English) <span class="required">*</span></label>
+                      <input type="text" x-model="formData.nombre_en" placeholder="Standard Cleaning">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Name (Spanish) <span class="required">*</span></label>
+                      <input type="text" x-model="formData.nombre_es" placeholder="Limpieza estándar">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Category <span class="required">*</span></label>
+                    <select x-model="formData.categoria">
+                      <option value="">— Select category —</option>
+                      <template x-for="c in categorias" :key="c.value">
+                        <option :value="c.value" x-text="c.label"></option>
+                      </template>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="form-section">
+                  <h3><i data-lucide="settings"></i> Settings</h3>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-external" x-model="formData.requiere_proveedor_externo">
+                    <label for="toggle-external">
+                      Requires external provider (e.g. electrical, plumbing, masonry)
+                    </label>
+                  </div>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-taxable" x-model="formData.taxable">
+                    <label for="toggle-taxable">
+                      Subject to Florida sales tax (6% + 1% Miami-Dade surtax)
+                    </label>
+                  </div>
+                  <span class="field-help">
+                    In Florida, cleaning services are taxable per FL Statute 212.05.
+                    Confirm with your accountant for each category.
+                  </span>
+                </div>
+
+                <!-- Pricing (solo edit — servicio debe existir antes de agregar tarifa) -->
+                <div class="form-section" x-show="formData.id">
+                  <h3><i data-lucide="dollar-sign"></i> Pricing</h3>
+
+                  <div class="rate-history">
+                    <template x-if="tarifas.length === 0">
+                      <p style="color:var(--color-text-soft);font-size:var(--text-sm);padding:var(--space-md) 0">
+                        No rates configured yet.
+                      </p>
+                    </template>
+                    <template x-for="t in tarifasOrdenadas" :key="t.id">
+                      <div class="rate-row" :class="esVigente(t) ? 'current' : ''">
+                        <div class="rate-row-info">
+                          <span class="rate-row-price" x-text="fmtPrecio(t)"></span>
+                          <span class="rate-row-dates">
+                            From <span x-text="t.vigente_desde"></span>
+                            <span x-show="t.vigente_hasta"> → <span x-text="t.vigente_hasta"></span></span>
+                            <span x-show="!t.vigente_hasta && esVigente(t)"> · <strong>Current</strong></span>
+                            <span x-show="t.notas"> · <span x-text="t.notas"></span></span>
+                          </span>
+                        </div>
+                        <div class="rate-row-actions">
+                          <button @click="confirmarEliminarTarifa(t)" title="Delete">
+                            <i data-lucide="trash-2"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+
+                  <button class="btn-add-contact" x-show="!agregandoTarifa"
+                          @click="agregandoTarifa = true; nuevaTarifa = nuevaTarifaVacia()">
+                    <i data-lucide="plus"></i> Add new rate
+                  </button>
+
+                  <div class="add-rate-form" x-show="agregandoTarifa" x-cloak>
+                    <div class="form-grid-3">
+                      <div class="field">
+                        <label class="field-label">Price <span class="required">*</span></label>
+                        <input type="number" step="0.01" min="0"
+                               x-model="nuevaTarifa.precio" placeholder="150.00">
+                      </div>
+                      <div class="field">
+                        <label class="field-label">Unit</label>
+                        <select x-model="nuevaTarifa.unidad">
+                          <template x-for="u in unidades" :key="u.value">
+                            <option :value="u.value" x-text="u.label"></option>
+                          </template>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label class="field-label">Effective from</label>
+                        <input type="date" x-model="nuevaTarifa.vigente_desde">
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Notes (optional)</label>
+                      <input type="text" x-model="nuevaTarifa.notas"
+                             placeholder="e.g. Holiday rate, special promotion">
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+                      <button class="btn btn-ghost" @click="agregandoTarifa = false">Cancel</button>
+                      <button class="btn btn-primary" @click="guardarTarifa()" :disabled="guardandoTarifa">
+                        <span x-show="guardandoTarifa" class="spinner spinner-sm"></span>
+                        <span x-text="guardandoTarifa ? 'Saving…' : 'Save Rate'"></span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <span class="field-help" style="margin-top:var(--space-sm);display:block">
+                    Adding a new rate automatically closes the previous one as of yesterday.
+                  </span>
+                </div>
+
+                <!-- Status (solo edit) -->
+                <div class="form-section" x-show="formData.id">
+                  <h3><i data-lucide="toggle-right"></i> Status</h3>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-svc-activo" x-model="formData.activo">
+                    <label for="toggle-svc-activo">
+                      <span x-show="formData.activo">Active — available for new service orders</span>
+                      <span x-show="!formData.activo">Inactive — hidden from selectors</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Error -->
+                <div class="alert alert-error" x-show="errorMsg" x-text="errorMsg"></div>
+
+              </div><!-- /modal-body -->
+
+              <div class="modal-footer">
+                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando">Cancel</button>
+                <button class="btn btn-primary" @click="guardar()" :disabled="guardando">
+                  <span x-show="guardando" class="spinner spinner-sm"></span>
+                  <span x-text="guardando ? 'Saving…' : 'Save'"></span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Toasts -->
+          <div class="toast-container">
+            <template x-for="t in toasts" :key="t.id">
+              <div class="toast" :class="`toast-${t.tipo}`" x-text="t.mensaje"></div>
+            </template>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import {
+      listarServicios, obtenerServicio, crearServicio, actualizarServicio,
+      toggleServicioActivo, crearTarifa, eliminarTarifa,
+      formatearPrecio, categoriaLabel, traducirError,
+      CATEGORIAS, UNIDADES
+    } from './js/services-api.js';
+
+    (async () => {
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin', 'owner', 'admin'],
+        itemActivo: 'services',
+        tituloHeader: 'Services Catalog'
+      });
+      if (!usuario) return;
+
+      window.servicesPage = function () {
+        return {
+          // Listado
+          servicios:       [],
+          cargando:        true,
+          busqueda:        '',
+          filtroCategoria: 'all',
+          filtroEstado:    'all',
+          categorias:      CATEGORIAS,
+          unidades:        UNIDADES,
+
+          // Modal
+          modalAbierto:    false,
+          guardando:       false,
+          errorMsg:        '',
+          formData:        {},
+          tarifas:         [],
+
+          // Tarifa nueva
+          agregandoTarifa: false,
+          guardandoTarifa: false,
+          nuevaTarifa:     {},
+
+          // Toasts
+          toasts: [],
+
+          // ─── Helpers ─────────────────────────────
+          formDataVacio() {
+            return {
+              id: null, nombre_en: '', nombre_es: '',
+              categoria: 'limpieza',
+              requiere_proveedor_externo: false,
+              taxable: false, activo: true
+            };
+          },
+          nuevaTarifaVacia() {
+            return {
+              precio: '', unidad: 'flat',
+              vigente_desde: new Date().toISOString().split('T')[0],
+              notas: ''
+            };
+          },
+          fmtPrecio(t)  { return formatearPrecio(t); },
+          catLabel(c)   { return categoriaLabel(c); },
+          esVigente(t)  {
+            const hoy = new Date().toISOString().split('T')[0];
+            return t.vigente_desde <= hoy && (!t.vigente_hasta || t.vigente_hasta >= hoy);
+          },
+          get tarifasOrdenadas() {
+            return [...this.tarifas].sort((a, b) =>
+              (b.vigente_desde || '').localeCompare(a.vigente_desde || '')
+            );
+          },
+
+          // ─── Init ────────────────────────────────
+          async init() {
+            this.formData = this.formDataVacio();
+            await this.recargar();
+          },
+
+          async recargar() {
+            this.cargando = true;
+            const { data, error } = await listarServicios({
+              busqueda:  this.busqueda,
+              categoria: this.filtroCategoria,
+              estado:    this.filtroEstado,
+            });
+            if (error) { this.mostrarToast('error', traducirError(error)); this.cargando = false; return; }
+            this.servicios = data;
+            this.cargando  = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Modal Nuevo ─────────────────────────
+          async abrirNuevo() {
+            this.formData       = this.formDataVacio();
+            this.tarifas        = [];
+            this.errorMsg       = '';
+            this.agregandoTarifa= false;
+            this.modalAbierto   = true;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Modal Editar ────────────────────────
+          async abrirEditar(id) {
+            this.modalAbierto    = true;
+            this.errorMsg        = '';
+            this.agregandoTarifa = false;
+            const { servicio, error } = await obtenerServicio(id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.modalAbierto = false;
+              return;
+            }
+            this.formData = {
+              id:                         servicio.id,
+              nombre_en:                  servicio.nombre_en,
+              nombre_es:                  servicio.nombre_es,
+              categoria:                  servicio.categoria   || 'limpieza',
+              requiere_proveedor_externo: servicio.requiere_proveedor_externo || false,
+              taxable:                    servicio.taxable     || false,
+              activo:                     servicio.activo,
+            };
+            this.tarifas = servicio.servicio_tarifas || [];
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cerrarModal() {
+            this.modalAbierto = false;
+            this.recargar();
+          },
+
+          // ─── Guardar servicio ────────────────────
+          async guardar() {
+            this.errorMsg = '';
+            if (!this.formData.nombre_en?.trim() || !this.formData.nombre_es?.trim()) {
+              this.errorMsg = 'Both English and Spanish names are required.'; return;
+            }
+            if (!this.formData.categoria) {
+              this.errorMsg = 'Category is required.'; return;
+            }
+            this.guardando = true;
+
+            const datos = {
+              nombre_en:                  this.formData.nombre_en.trim(),
+              nombre_es:                  this.formData.nombre_es.trim(),
+              categoria:                  this.formData.categoria,
+              requiere_proveedor_externo: this.formData.requiere_proveedor_externo,
+              taxable:                    this.formData.taxable,
+            };
+
+            if (!this.formData.id) {
+              // Crear → abrir en modo edición para agregar precio
+              const { servicio, error } = await crearServicio({ ...datos, activo: true });
+              this.guardando = false;
+              if (error) { this.errorMsg = traducirError(error); return; }
+              this.formData.id = servicio.id;
+              this.tarifas     = [];
+              this.mostrarToast('success', 'Service created. Now add a price.');
+            } else {
+              datos.activo = this.formData.activo;
+              const { error } = await actualizarServicio(this.formData.id, datos);
+              this.guardando = false;
+              if (error) { this.errorMsg = traducirError(error); return; }
+              this.cerrarModal();
+              this.mostrarToast('success', 'Service updated.');
+            }
+          },
+
+          // ─── Guardar tarifa ──────────────────────
+          async guardarTarifa() {
+            const t = this.nuevaTarifa;
+            if (!t.precio || isNaN(parseFloat(t.precio))) {
+              this.mostrarToast('error', 'Please enter a valid price.'); return;
+            }
+            if (!t.vigente_desde) {
+              this.mostrarToast('error', 'Please set an effective date.'); return;
+            }
+            this.guardandoTarifa = true;
+            const { error } = await crearTarifa(this.formData.id, {
+              precio:       parseFloat(t.precio),
+              unidad:       t.unidad      || 'flat',
+              vigente_desde:t.vigente_desde,
+              notas:        t.notas       || null,
+            });
+            this.guardandoTarifa = false;
+            if (error) { this.mostrarToast('error', traducirError(error)); return; }
+            this.mostrarToast('success', 'Rate added.');
+            this.agregandoTarifa = false;
+            const { servicio } = await obtenerServicio(this.formData.id);
+            this.tarifas = servicio?.servicio_tarifas || [];
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async confirmarEliminarTarifa(t) {
+            if (!confirm(`Delete this rate (${this.fmtPrecio(t)})?`)) return;
+            const { error } = await eliminarTarifa(t.id);
+            if (error) { this.mostrarToast('error', traducirError(error)); return; }
+            this.mostrarToast('success', 'Rate deleted.');
+            const { servicio } = await obtenerServicio(this.formData.id);
+            this.tarifas = servicio?.servicio_tarifas || [];
+          },
+
+          // ─── Toggle activo ───────────────────────
+          async confirmarToggle(s) {
+            const accion = s.activo ? 'deactivate' : 'activate';
+            if (!confirm(`${accion.charAt(0).toUpperCase() + accion.slice(1)} "${s.nombre_en}"?`)) return;
+            const { error } = await toggleServicioActivo(s.id, !s.activo);
+            if (error) { this.mostrarToast('error', traducirError(error)); return; }
+            this.mostrarToast('success', s.activo ? 'Service deactivated.' : 'Service activated.');
+            await this.recargar();
+          },
+
+          // ─── Toasts ──────────────────────────────
+          mostrarToast(tipo, mensaje) {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, tipo, mensaje });
+            setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 3500);
+          }
+        };
+      };
+
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
+</body>
+</html>

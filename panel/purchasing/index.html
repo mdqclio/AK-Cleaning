@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purchasing — AK Cleaning</title>
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/panel/css/panel.css" />
+</head>
+<body>
+
+<div id="panel-shell"></div>
+
+<div id="page-content">
+  <div class="content-inner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:var(--space-md)">
+    <div style="width:64px;height:64px;border-radius:16px;background:var(--color-surface);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;margin:0 auto">
+      <i data-lucide="shopping-cart" style="width:32px;height:32px;color:var(--color-accent)"></i>
+    </div>
+    <h2 style="color:var(--color-primary);font-size:var(--text-xl)">Purchasing</h2>
+    <p style="color:var(--color-text-muted);max-width:400px;line-height:1.6">
+      Purchase order management is under development.<br>
+      This module will handle supply requests, approvals, and tracking against providers.
+    </p>
+    <span class="badge badge-status-inactive" style="font-size:var(--text-sm);padding:6px 16px">Coming Soon</span>
+  </div>
+</div>
+
+<script type="module">
+  import { iniciarPanel } from '/panel/js/panel-shell.js';
+  (async () => {
+    await iniciarPanel({
+      rolesPermitidos: ['superadmin', 'owner', 'admin', 'compras'],
+      itemActivo: 'purchasing',
+      tituloHeader: 'Purchasing',
+    });
+    if (window.lucide) window.lucide.createIcons();
+  })();
+</script>
+</body>
+</html>

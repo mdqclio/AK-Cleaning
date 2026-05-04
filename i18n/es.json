@@ -1,0 +1,19 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "loading": "Cargando...",
+    "error_generic": "Algo salió mal. Por favor intentá de nuevo."
+  },
+  "auth": {
+    "sign_in": "Iniciar sesión",
+    "sign_out": "Cerrar sesión",
+    "email": "Email",
+    "password": "Contraseña",
+    "forgot_password": "¿Olvidaste tu contraseña?",
+    "reset_password": "Restablecer contraseña",
+    "back_to_login": "Volver al login",
+    "reset_email_sent": "Revisá tu email para el enlace de restablecimiento",
+    "welcome": "Bienvenido de vuelta"
+  }
+}

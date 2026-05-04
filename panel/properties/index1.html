@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Properties · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/panel/css/panel.css">
+  <link rel="stylesheet" href="/panel/clients/css/clients.css">
+  <link rel="stylesheet" href="./css/properties.css">
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="header" id="header"></header>
+
+      <div class="content">
+        <div class="clients-page" x-data="propertiesPage()" x-init="init()" x-cloak>
+
+          <!-- Toolbar -->
+          <div class="clients-toolbar">
+            <div class="clients-search">
+              <i data-lucide="search"></i>
+              <input
+                type="text"
+                placeholder="Search by reference, address, building, client..."
+                x-model="busqueda"
+                @input.debounce.300ms="pagina = 1; recargar()"
+              >
+            </div>
+            <select x-model="filtroCliente" @change="pagina = 1; recargar()">
+              <option value="all">All clients</option>
+              <template x-for="c in clientesDropdown" :key="c.id">
+                <option :value="c.id" x-text="formatCliente(c)"></option>
+              </template>
+            </select>
+            <select x-model="filtroEdificio" @change="pagina = 1; recargar()">
+              <option value="all">All buildings</option>
+              <option value="none">Standalone (no building)</option>
+              <template x-for="e in edificios" :key="e.id">
+                <option :value="e.id" x-text="e.nombre"></option>
+              </template>
+            </select>
+            <select x-model="filtroTipo" @change="pagina = 1; recargar()">
+              <option value="all">All types</option>
+              <option value="depto">Apartment</option>
+              <option value="casa">House</option>
+              <option value="oficina">Office</option>
+              <option value="otro">Other</option>
+            </select>
+            <select x-model="filtroEstado" @change="pagina = 1; recargar()">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <button class="btn-manage-buildings" @click="abrirManageBuildings()">
+              <i data-lucide="building"></i>
+              Buildings
+            </button>
+            <button class="btn btn-primary btn-new" @click="abrirNuevo()">
+              <i data-lucide="plus"></i>
+              New Property
+            </button>
+          </div>
+
+          <!-- Tabla -->
+          <div class="clients-table-wrapper">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>Client</th>
+                  <th>Building / Address</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Skeleton -->
+                <template x-if="cargando">
+                  <template x-for="i in 5" :key="i">
+                    <tr class="skeleton-row">
+                      <td><span class="skeleton-bar" style="width: 140px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 120px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 200px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 80px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 60px"></span></td>
+                      <td></td>
+                    </tr>
+                  </template>
+                </template>
+
+                <!-- Empty state -->
+                <template x-if="!cargando && propiedades.length === 0">
+                  <tr>
+                    <td colspan="6">
+                      <div class="empty-state">
+                        <i data-lucide="building-2"></i>
+                        <h3>No properties found</h3>
+                        <p x-text="busqueda ? 'No results match your search.' : 'Get started by adding your first property.'"></p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <!-- Filas -->
+                <template x-if="!cargando">
+                  <template x-for="p in propiedades" :key="p.id">
+                    <tr @click="abrirEditar(p.id)">
+                      <td>
+                        <div class="client-name" x-text="p.nombre_referencia"></div>
+                      </td>
+                      <td x-text="formatCliente(p.clientes)"></td>
+                      <td>
+                        <div class="property-address" x-text="formatDireccion(p)"></div>
+                      </td>
+                      <td>
+                        <span class="badge-type badge-type-individual" x-text="tipoLabel(p.tipo)"></span>
+                      </td>
+                      <td>
+                        <span
+                          class="badge-status"
+                          :class="p.activa ? 'badge-status-active' : 'badge-status-inactive'"
+                          x-text="p.activa ? 'Active' : 'Inactive'"
+                        ></span>
+                      </td>
+                      <td>
+                        <div class="row-actions" @click.stop>
+                          <button @click="abrirEditar(p.id)" title="Edit">
+                            <i data-lucide="pencil"></i>
+                          </button>
+                          <button @click="confirmarToggle(p)" :title="p.activa ? 'Deactivate' : 'Activate'">
+                            <i :data-lucide="p.activa ? 'archive' : 'archive-restore'"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Paginación -->
+          <div class="pagination" x-show="!cargando && totalPaginas > 1">
+            <div>Showing <strong x-text="rangoMostrado()"></strong> of <strong x-text="total"></strong></div>
+            <div class="pagination-controls">
+              <button @click="irPagina(pagina - 1)" :disabled="pagina === 1">
+                <i data-lucide="chevron-left" style="width:14px;height:14px"></i>
+              </button>
+              <template x-for="n in numerosPagina()" :key="n">
+                <button @click="irPagina(n)" :class="n === pagina ? 'active' : ''" x-text="n"></button>
+              </template>
+              <button @click="irPagina(pagina + 1)" :disabled="pagina === totalPaginas">
+                <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ─── Modal: Property Form ──────────────────── -->
+          <div class="modal-overlay" x-show="modalAbierto" @click.self="cerrarModal()" x-cloak>
+            <div class="modal-form" @click.stop>
+              <div class="modal-header">
+                <h2 x-text="formData.id ? 'Edit Property' : 'New Property'"></h2>
+                <button class="modal-close" @click="cerrarModal()">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+
+                <!-- Sección 1: Basic Information -->
+                <div class="form-section">
+                  <h3><i data-lucide="info"></i> Basic Information</h3>
+                  <div class="field">
+                    <label class="field-label">Reference Name <span class="required">*</span></label>
+                    <input type="text" x-model="formData.nombre_referencia"
+                           placeholder="e.g. Setai PH-1, Brickell Apt, Smith House">
+                    <span class="field-help">Short name to identify this property internally.</span>
+                  </div>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Client <span class="required">*</span></label>
+                      <select x-model="formData.cliente_id">
+                        <option value="">— Select client —</option>
+                        <template x-for="c in clientesDropdown" :key="c.id">
+                          <option :value="c.id" x-text="formatCliente(c)"></option>
+                        </template>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Type</label>
+                      <select x-model="formData.tipo">
+                        <option value="depto">Apartment / Condo</option>
+                        <option value="casa">House</option>
+                        <option value="oficina">Office</option>
+                        <option value="otro">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sección 2: Address — tabs Building vs Manual -->
+                <div class="form-section">
+                  <h3><i data-lucide="map-pin"></i> Address</h3>
+                  <div class="tabs">
+                    <button
+                      class="tab"
+                      :class="modoDireccion === 'edificio' ? 'active' : ''"
+                      @click="modoDireccion = 'edificio'"
+                    >In a Building</button>
+                    <button
+                      class="tab"
+                      :class="modoDireccion === 'manual' ? 'active' : ''"
+                      @click="modoDireccion = 'manual'"
+                    >Standalone Address</button>
+                  </div>
+
+                  <!-- Modo edificio -->
+                  <div x-show="modoDireccion === 'edificio'">
+                    <div class="form-grid-2">
+                      <div class="field">
+                        <label class="field-label">Building <span class="required">*</span></label>
+                        <select x-model="formData.edificio_id">
+                          <option value="">— Select building —</option>
+                          <template x-for="e in edificios" :key="e.id">
+                            <option :value="e.id" x-text="e.nombre"></option>
+                          </template>
+                        </select>
+                        <span class="field-help">
+                          Don't see it?
+                          <a href="#" @click.prevent="abrirManageBuildings()" style="color:var(--color-accent)">Add a new building</a>
+                        </span>
+                      </div>
+                      <div class="field">
+                        <label class="field-label">Unit</label>
+                        <input type="text" x-model="formData.unidad" placeholder="e.g. PH-1, 304, Apt 5B">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Modo dirección manual -->
+                  <div x-show="modoDireccion === 'manual'">
+                    <div class="field">
+                      <label class="field-label">Address Line 1 <span class="required">*</span></label>
+                      <input type="text" x-model="formData.direccion_1" placeholder="123 Main Street">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Address Line 2</label>
+                      <input type="text" x-model="formData.direccion_2" placeholder="Suite, building name, etc.">
+                    </div>
+                    <div class="form-grid-3">
+                      <div class="field">
+                        <label class="field-label">City</label>
+                        <input type="text" x-model="formData.ciudad" placeholder="Miami Beach">
+                      </div>
+                      <div class="field">
+                        <label class="field-label">State</label>
+                        <input type="text" x-model="formData.state" maxlength="2" placeholder="FL">
+                      </div>
+                      <div class="field">
+                        <label class="field-label">ZIP</label>
+                        <input type="text" x-model="formData.zip" maxlength="10" placeholder="33140">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sección 3: Access Information -->
+                <div class="form-section">
+                  <h3><i data-lucide="key-round"></i> Access Information</h3>
+                  <div class="access-info-box">
+                    <strong>Visible to staff:</strong>
+                    This information is shown to assigned staff and providers when they have a service order at this property.
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Door Code / Lock Code</label>
+                    <input type="text" x-model="formData.acceso_codigo" placeholder="e.g. 1234#">
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Doorman / Concierge Instructions</label>
+                    <textarea x-model="formData.acceso_porteria" rows="2"
+                              placeholder="e.g. Tell doorman you're with AK Cleaning. They'll let you up."></textarea>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Key Location / Special Instructions</label>
+                    <textarea x-model="formData.acceso_llave" rows="2"
+                              placeholder="e.g. Lockbox on the right side of the door, code 5678."></textarea>
+                  </div>
+                </div>
+
+                <!-- Sección 4: Special Notes -->
+                <div class="form-section">
+                  <h3><i data-lucide="file-text"></i> Special Notes</h3>
+                  <div class="field">
+                    <textarea x-model="formData.notas_especiales" rows="3"
+                              placeholder="Pet on premises, fragile items, owner preferences, etc."></textarea>
+                  </div>
+                </div>
+
+                <!-- Sección 5: Status (solo al editar) -->
+                <div class="form-section" x-show="formData.id">
+                  <h3><i data-lucide="toggle-right"></i> Status</h3>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-activa" x-model="formData.activa">
+                    <label for="toggle-activa">
+                      <span x-show="formData.activa">Active — property is currently being serviced</span>
+                      <span x-show="!formData.activa">Inactive — property is archived</span>
+                    </label>
+                  </div>
+                  <p class="field-help">Inactive properties remain in the system but can't have new service orders.</p>
+                </div>
+
+              </div>
+
+              <div class="modal-footer">
+                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando">Cancel</button>
+                <button
+                  class="btn btn-primary"
+                  @click="guardar()"
+                  :disabled="guardando"
+                  x-text="guardando ? 'Saving...' : 'Save'"
+                ></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── Modal: Manage Buildings ───────────────── -->
+          <div class="modal-overlay" x-show="manageBuildingsAbierto" @click.self="manageBuildingsAbierto = false" x-cloak>
+            <div class="modal-form" @click.stop>
+              <div class="modal-header">
+                <h2>Manage Buildings</h2>
+                <button class="modal-close" @click="manageBuildingsAbierto = false">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+                <p class="field-help" style="margin-bottom: var(--space-md)">
+                  Buildings group properties that share an address (condos, towers).
+                  Add a building first, then assign properties to it.
+                </p>
+
+                <!-- Formulario inline de edificio (nuevo o editar) -->
+                <div class="building-edit-form" x-show="edificioEditando" style="margin-bottom: var(--space-md)">
+                  <h4 style="margin-bottom: var(--space-md); color: var(--color-primary)"
+                      x-text="edificioEditando?.id ? 'Edit Building' : 'New Building'"></h4>
+                  <div class="field">
+                    <label class="field-label">Name <span class="required">*</span></label>
+                    <input type="text" x-model="edificioEditando.nombre" placeholder="The Setai">
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Address Line 1 <span class="required">*</span></label>
+                    <input type="text" x-model="edificioEditando.direccion_1" placeholder="2001 Collins Ave">
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Address Line 2</label>
+                    <input type="text" x-model="edificioEditando.direccion_2">
+                  </div>
+                  <div class="form-grid-3">
+                    <div class="field">
+                      <label class="field-label">City</label>
+                      <input type="text" x-model="edificioEditando.ciudad">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">State</label>
+                      <input type="text" x-model="edificioEditando.state" maxlength="2">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">ZIP <span class="required">*</span></label>
+                      <input type="text" x-model="edificioEditando.zip" maxlength="10">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Notes</label>
+                    <textarea x-model="edificioEditando.notas" rows="2"></textarea>
+                  </div>
+                  <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--space-md)">
+                    <button class="btn btn-ghost" @click="edificioEditando = null">Cancel</button>
+                    <button
+                      class="btn btn-primary"
+                      @click="guardarEdificio()"
+                      :disabled="guardandoEdificio"
+                      x-text="guardandoEdificio ? 'Saving...' : 'Save Building'"
+                    ></button>
+                  </div>
+                </div>
+
+                <!-- Botón agregar nuevo edificio -->
+                <button class="btn-add-contact" @click="nuevoEdificio()" x-show="!edificioEditando">
+                  <i data-lucide="plus"></i> Add New Building
+                </button>
+
+                <!-- Lista de edificios -->
+                <div class="buildings-list" style="margin-top: var(--space-md)">
+                  <template x-if="edificiosCompletos.length === 0">
+                    <div class="empty-state" style="padding: var(--space-lg)">
+                      <i data-lucide="building"></i>
+                      <p>No buildings registered yet.</p>
+                    </div>
+                  </template>
+                  <template x-for="e in edificiosCompletos" :key="e.id">
+                    <div class="building-card">
+                      <div class="building-card-info">
+                        <div class="building-card-name" x-text="e.nombre"></div>
+                        <div class="building-card-address">
+                          <span x-text="e.direccion_1"></span>
+                          <span x-show="e.direccion_2" x-text="', ' + e.direccion_2"></span><br>
+                          <span x-text="`${e.ciudad}, ${e.state} ${e.zip}`"></span>
+                        </div>
+                        <div class="building-card-count"
+                             x-text="`${e.cantidad_propiedades} ${e.cantidad_propiedades === 1 ? 'property' : 'properties'}`">
+                        </div>
+                      </div>
+                      <div class="building-card-actions">
+                        <button @click="editarEdificio(e)" title="Edit">
+                          <i data-lucide="pencil"></i>
+                        </button>
+                        <button
+                          @click="confirmarEliminarEdificio(e)"
+                          title="Delete"
+                          :disabled="e.cantidad_propiedades > 0"
+                        >
+                          <i data-lucide="trash-2"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button class="btn btn-primary" @click="manageBuildingsAbierto = false">Done</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toasts -->
+          <div class="toast-container">
+            <template x-for="t in toasts" :key="t.id">
+              <div class="toast" :class="`toast-${t.tipo}`" x-text="t.mensaje"></div>
+            </template>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import {
+      listarPropiedades, obtenerPropiedad, crearPropiedad, actualizarPropiedad, togglePropiedadActiva,
+      listarEdificios, listarEdificiosConConteo, crearEdificio, actualizarEdificio, eliminarEdificio,
+      listarClientesParaDropdown, traducirError, formatearDireccion, formatearNombreCliente
+    } from './js/properties-api.js';
+
+    (async () => {
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin', 'owner', 'admin'],
+        itemActivo: 'properties',
+        tituloHeader: 'Properties'
+      });
+      if (!usuario) return;
+
+      // Definir componente Alpine ANTES de importarlo
+      window.propertiesPage = function () {
+        return {
+          // ─── Estado del listado ─────────────────────────
+          propiedades: [],
+          total: 0,
+          cargando: true,
+          busqueda: '',
+          filtroCliente: 'all',
+          filtroEdificio: 'all',
+          filtroTipo: 'all',
+          filtroEstado: 'all',
+          pagina: 1,
+          porPagina: 20,
+
+          // ─── Dropdowns ──────────────────────────────────
+          clientesDropdown: [],
+          edificios: [],
+
+          // ─── Modal property form ────────────────────────
+          modalAbierto: false,
+          guardando: false,
+          formData: {},
+          modoDireccion: 'edificio',
+
+          // ─── Modal manage buildings ─────────────────────
+          manageBuildingsAbierto: false,
+          edificiosCompletos: [],
+          edificioEditando: null,
+          guardandoEdificio: false,
+
+          // ─── Toasts ─────────────────────────────────────
+          toasts: [],
+
+          formDataVacio() {
+            return {
+              id: null,
+              nombre_referencia: '',
+              cliente_id: '',
+              edificio_id: null,
+              unidad: '',
+              direccion_1: '',
+              direccion_2: '',
+              ciudad: 'Miami Beach',
+              state: 'FL',
+              zip: '',
+              tipo: 'depto',
+              acceso_codigo: '',
+              acceso_porteria: '',
+              acceso_llave: '',
+              notas_especiales: '',
+              activa: true
+            };
+          },
+
+          edificioVacio() {
+            return {
+              id: null,
+              nombre: '',
+              direccion_1: '',
+              direccion_2: '',
+              ciudad: 'Miami Beach',
+              state: 'FL',
+              zip: '',
+              notas: ''
+            };
+          },
+
+          async init() {
+            this.formData = this.formDataVacio();
+            await this.cargarDropdowns();
+            await this.recargar();
+          },
+
+          async cargarDropdowns() {
+            const [{ data: clientes }, { data: edif }] = await Promise.all([
+              listarClientesParaDropdown(),
+              listarEdificios()
+            ]);
+            this.clientesDropdown = clientes;
+            this.edificios = edif;
+          },
+
+          async recargar() {
+            this.cargando = true;
+            const { data, count, error } = await listarPropiedades({
+              busqueda:    this.busqueda,
+              cliente_id:  this.filtroCliente,
+              edificio_id: this.filtroEdificio,
+              tipo:        this.filtroTipo,
+              estado:      this.filtroEstado,
+              pagina:      this.pagina,
+              porPagina:   this.porPagina
+            });
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.cargando = false;
+              return;
+            }
+            this.propiedades = data;
+            this.total = count;
+            this.cargando = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          formatCliente(c)  { return formatearNombreCliente(c); },
+          formatDireccion(p) { return formatearDireccion(p); },
+          tipoLabel(t) {
+            return { depto: 'Apartment', casa: 'House', oficina: 'Office', otro: 'Other' }[t] || t;
+          },
+
+          // ─── Paginación ─────────────────────────────────
+          get totalPaginas() {
+            return Math.max(1, Math.ceil(this.total / this.porPagina));
+          },
+          rangoMostrado() {
+            if (this.total === 0) return '0';
+            const desde = (this.pagina - 1) * this.porPagina + 1;
+            const hasta = Math.min(this.pagina * this.porPagina, this.total);
+            return `${desde}–${hasta}`;
+          },
+          numerosPagina() {
+            const t = this.totalPaginas;
+            const p = this.pagina;
+            const arr = [];
+            const inicio = Math.max(1, p - 2);
+            const fin    = Math.min(t, inicio + 4);
+            for (let i = inicio; i <= fin; i++) arr.push(i);
+            return arr;
+          },
+          irPagina(n) {
+            if (n < 1 || n > this.totalPaginas) return;
+            this.pagina = n;
+            this.recargar();
+          },
+
+          // ─── Modal Property: abrir nuevo ────────────────
+          async abrirNuevo() {
+            this.formData = this.formDataVacio();
+            this.modoDireccion = 'edificio';
+            this.guardando = false;
+            this.modalAbierto = true;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Modal Property: abrir editar ───────────────
+          async abrirEditar(id) {
+            this.modalAbierto = true;
+            this.guardando = false;
+            const { propiedad, error } = await obtenerPropiedad(id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.modalAbierto = false;
+              return;
+            }
+            this.formData = { ...propiedad };
+            // Limpiar los joins para no mandarlos en el UPDATE
+            delete this.formData.clientes;
+            delete this.formData.edificios;
+            this.modoDireccion = propiedad.edificio_id ? 'edificio' : 'manual';
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cerrarModal() { this.modalAbierto = false; },
+
+          // ─── Guardar propiedad ───────────────────────────
+          async guardar() {
+            if (!this.formData.nombre_referencia?.trim() || !this.formData.cliente_id) {
+              this.mostrarToast('error', 'Reference name and client are required.');
+              return;
+            }
+            if (this.modoDireccion === 'edificio' && !this.formData.edificio_id) {
+              this.mostrarToast('error', 'Please select a building or switch to standalone address.');
+              return;
+            }
+            if (this.modoDireccion === 'manual' && !this.formData.direccion_1?.trim()) {
+              this.mostrarToast('error', 'Please enter an address or select a building.');
+              return;
+            }
+
+            this.guardando = true;
+            const datos = { ...this.formData };
+
+            // Limpiar campos según el modo de dirección elegido
+            if (this.modoDireccion === 'edificio') {
+              datos.direccion_1 = null;
+              datos.direccion_2 = null;
+              datos.ciudad      = null;
+              datos.state       = null;
+              datos.zip         = null;
+            } else {
+              datos.edificio_id = null;
+              datos.unidad      = null;
+            }
+
+            // Quitar campos de auditoría
+            const idGuardado = datos.id;
+            delete datos.id;
+            delete datos.creado_en;
+            delete datos.actualizado_en;
+            delete datos.actualizado_por;
+
+            let error;
+            if (idGuardado) {
+              ({ error } = await actualizarPropiedad(idGuardado, datos));
+            } else {
+              ({ error } = await crearPropiedad(datos));
+            }
+
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.guardando = false;
+              return;
+            }
+
+            this.guardando = false;
+            this.modalAbierto = false;
+            this.mostrarToast('success', idGuardado ? 'Property updated.' : 'Property created.');
+            await this.recargar();
+          },
+
+          // ─── Toggle activa/inactiva ──────────────────────
+          async confirmarToggle(p) {
+            const accion = p.activa ? 'deactivate' : 'activate';
+            if (!confirm(`Are you sure you want to ${accion} "${p.nombre_referencia}"?`)) return;
+            const { error } = await togglePropiedadActiva(p.id, !p.activa);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.mostrarToast('success', p.activa ? 'Property deactivated.' : 'Property activated.');
+            await this.recargar();
+          },
+
+          // ─── Manage Buildings ───────────────────────────
+          async abrirManageBuildings() {
+            this.edificioEditando = null;
+            this.manageBuildingsAbierto = true;
+            await this.recargarEdificiosCompletos();
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async recargarEdificiosCompletos() {
+            const { data } = await listarEdificiosConConteo();
+            this.edificiosCompletos = data;
+          },
+
+          nuevoEdificio() {
+            this.edificioEditando = this.edificioVacio();
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          editarEdificio(e) {
+            this.edificioEditando = { ...e };
+            // Limpiar campos computados del join
+            delete this.edificioEditando.propiedades;
+            delete this.edificioEditando.cantidad_propiedades;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async guardarEdificio() {
+            if (!this.edificioEditando.nombre?.trim() ||
+                !this.edificioEditando.direccion_1?.trim() ||
+                !this.edificioEditando.zip?.trim()) {
+              this.mostrarToast('error', 'Name, address and ZIP are required.');
+              return;
+            }
+            this.guardandoEdificio = true;
+            const datos = { ...this.edificioEditando };
+            const id = datos.id;
+            delete datos.id;
+
+            let error;
+            if (id) {
+              ({ error } = await actualizarEdificio(id, datos));
+            } else {
+              ({ error } = await crearEdificio(datos));
+            }
+
+            this.guardandoEdificio = false;
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+
+            this.mostrarToast('success', id ? 'Building updated.' : 'Building created.');
+            this.edificioEditando = null;
+
+            // Recargar lista de edificios y dropdowns en paralelo
+            await Promise.all([
+              this.recargarEdificiosCompletos(),
+              this.cargarDropdowns()
+            ]);
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async confirmarEliminarEdificio(e) {
+            if (e.cantidad_propiedades > 0) {
+              this.mostrarToast('error', `Cannot delete: ${e.cantidad_propiedades} property(ies) use this building.`);
+              return;
+            }
+            if (!confirm(`Delete building "${e.nombre}"? This cannot be undone.`)) return;
+            const { error } = await eliminarEdificio(e.id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.mostrarToast('success', 'Building deleted.');
+            await Promise.all([
+              this.recargarEdificiosCompletos(),
+              this.cargarDropdowns()
+            ]);
+          },
+
+          // ─── Toasts ─────────────────────────────────────
+          mostrarToast(tipo, mensaje) {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, tipo, mensaje });
+            setTimeout(() => {
+              this.toasts = this.toasts.filter(t => t.id !== id);
+            }, 3500);
+          }
+        };
+      };
+
+      // Importar y arrancar Alpine DESPUÉS de definir el componente
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+
+      // Activar lucide tras el primer render
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
+</body>
+</html>

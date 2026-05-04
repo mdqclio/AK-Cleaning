@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign In · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <script src="/config.js"></script>
+
+</head>
+<body>
+  <div class="login-container" x-data="loginForm()">
+
+    <!-- Logo / Brand -->
+    <div class="brand">
+      <div class="brand-circle">AK</div>
+      <h1 class="brand-name">AK Cleaning & Management</h1>
+      <p class="brand-tagline">Property Management & Concierge Services</p>
+    </div>
+
+    <!-- Formulario de login -->
+    <div class="login-card" x-show="modo === 'login'" x-cloak>
+      <h2>Sign In</h2>
+      <form @submit.prevent="manejarLogin()">
+
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input
+            class="input"
+            type="email"
+            x-model="email"
+            required
+            autofocus
+            placeholder="you@example.com"
+            :disabled="cargando"
+          >
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input
+            class="input"
+            type="password"
+            x-model="password"
+            required
+            placeholder="••••••••"
+            :disabled="cargando"
+          >
+        </label>
+
+        <div class="alert alert-error" x-show="error" x-text="error" role="alert"></div>
+
+        <button type="submit" class="btn btn-primary btn-lg" :disabled="cargando">
+          <span class="spinner" x-show="cargando" aria-hidden="true"></span>
+          <span x-text="cargando ? 'Signing in...' : 'Sign In'"></span>
+        </button>
+
+        <a href="#" @click.prevent="cambiarModo('reset')" class="link-secondary">Forgot password?</a>
+      </form>
+    </div>
+
+    <!-- Formulario de reset de password -->
+    <div class="login-card" x-show="modo === 'reset'" x-cloak>
+      <h2>Reset Password</h2>
+      <form @submit.prevent="manejarReset()">
+
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input
+            class="input"
+            type="email"
+            x-model="email"
+            required
+            autofocus
+            placeholder="you@example.com"
+            :disabled="cargando"
+          >
+        </label>
+
+        <div class="alert alert-success" x-show="mensajeReset" x-text="mensajeReset" role="status"></div>
+        <div class="alert alert-error" x-show="error" x-text="error" role="alert"></div>
+
+        <button type="submit" class="btn btn-primary btn-lg" :disabled="cargando || !!mensajeReset">
+          <span class="spinner" x-show="cargando" aria-hidden="true"></span>
+          <span x-text="cargando ? 'Sending...' : 'Send Reset Link'"></span>
+        </button>
+
+        <a href="#" @click.prevent="cambiarModo('login')" class="link-secondary">Back to login</a>
+      </form>
+    </div>
+
+    <p class="footer-text">© 2026 AK Property Management. All rights reserved.</p>
+  </div>
+
+  <script type="module">
+    import { iniciarSesion, recuperarPassword, obtenerSesionActual } from '/js/auth.js';
+    import { redirigirSegunRol } from '/js/router.js';
+
+    // 1. Definir window.loginForm de forma síncrona ANTES de importar Alpine.
+    //    Alpine busca esta función cuando evalúa x-data="loginForm()".
+    //    Si Alpine cargara primero, no la encontraría. Con dynamic import
+    //    controlamos el orden: primero definimos, después cargamos Alpine.
+    window.loginForm = function () {
+      return {
+        modo: 'login',
+        email: '',
+        password: '',
+        error: '',
+        mensajeReset: '',
+        cargando: false,
+
+        cambiarModo(nuevoModo) {
+          this.modo = nuevoModo;
+          this.error = '';
+          this.mensajeReset = '';
+        },
+
+        async manejarLogin() {
+          this.error = '';
+          this.cargando = true;
+          const { ok, usuario, error } = await iniciarSesion(this.email, this.password);
+          this.cargando = false;
+          if (!ok) {
+            this.error = error;
+            return;
+          }
+          redirigirSegunRol(usuario);
+        },
+
+        async manejarReset() {
+          this.error = '';
+          this.mensajeReset = '';
+          this.cargando = true;
+          const { ok, error } = await recuperarPassword(this.email);
+          this.cargando = false;
+          if (!ok) {
+            this.error = error || 'Something went wrong. Please try again.';
+            return;
+          }
+          this.mensajeReset = 'Check your email for a reset link.';
+        }
+      };
+    };
+
+    // 2. Importar Alpine dinámicamente. En este punto window.loginForm ya existe,
+    //    así que Alpine lo encuentra al inicializar y procesar x-data="loginForm()".
+    await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js');
+
+    // 3. Chequear sesión activa. Si existe, redirigir al panel del rol.
+    const sesion = await obtenerSesionActual();
+    if (sesion && sesion.usuario) {
+      redirigirSegunRol(sesion.usuario);
+    }
+  </script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-lg);
+      background: linear-gradient(135deg, var(--color-bg) 0%, #ede9df 100%);
+    }
+
+    /* Brand */
+    .brand {
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    .brand-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: var(--color-accent);
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto var(--space-md);
+      letter-spacing: 1px;
+    }
+    .brand-name {
+      font-size: var(--text-xl);
+      color: var(--color-primary);
+      margin-bottom: var(--space-xs);
+    }
+    .brand-tagline {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    /* Card de login */
+    .login-card {
+      background: var(--color-surface);
+      padding: var(--space-xl);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 420px;
+      border: 1px solid var(--color-border);
+    }
+    .login-card h2 {
+      margin-bottom: var(--space-lg);
+      text-align: center;
+      color: var(--color-primary);
+    }
+    .login-card .btn {
+      width: 100%;
+      margin-top: var(--space-sm);
+    }
+    .login-card .alert {
+      margin-bottom: var(--space-md);
+    }
+
+    /* Link secundario (forgot password / back) */
+    .link-secondary {
+      display: block;
+      text-align: center;
+      margin-top: var(--space-md);
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      transition: color var(--transition-fast);
+    }
+    .link-secondary:hover {
+      color: var(--color-accent);
+    }
+
+    /* Footer */
+    .footer-text {
+      margin-top: var(--space-xl);
+      font-size: var(--text-xs);
+      color: var(--color-text-soft);
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .login-card {
+        padding: var(--space-lg);
+      }
+      .brand-name {
+        font-size: var(--text-lg);
+      }
+    }
+  </style>
+</body>
+</html>

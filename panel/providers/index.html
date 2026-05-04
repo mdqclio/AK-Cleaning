@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Providers · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/panel/css/panel.css">
+  <link rel="stylesheet" href="/panel/clients/css/clients.css">
+  <link rel="stylesheet" href="/panel/staff/css/staff.css">
+  <link rel="stylesheet" href="./css/providers.css">
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="header" id="header"></header>
+
+      <div class="content">
+        <div class="clients-page" x-data="providersPage()" x-init="init()" x-cloak>
+
+          <!-- ─── Toolbar ──────────────────────────── -->
+          <div class="clients-toolbar">
+            <div class="clients-search">
+              <i data-lucide="search"></i>
+              <input type="text" placeholder="Search by company, contact, email, phone…"
+                     x-model="busqueda" @input.debounce.300ms="pagina = 1; recargar()">
+            </div>
+            <select x-model="filtroRubro" @change="pagina = 1; recargar()">
+              <option value="all">All categories</option>
+              <template x-for="r in rubrosSugeridos" :key="r">
+                <option :value="r" x-text="r"></option>
+              </template>
+            </select>
+            <select x-model="filtroApp" @change="pagina = 1; recargar()">
+              <option value="all">All providers</option>
+              <option value="yes">Has app access</option>
+              <option value="no">No app access</option>
+            </select>
+            <select x-model="filtroEstado" @change="pagina = 1; recargar()">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <button class="btn btn-primary btn-new" @click="abrirNuevo()">
+              <i data-lucide="plus"></i>
+              New Provider
+            </button>
+          </div>
+
+          <!-- ─── Tabla ────────────────────────────── -->
+          <div class="clients-table-wrapper">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Contact</th>
+                  <th>Phone</th>
+                  <th>Categories</th>
+                  <th>Rating</th>
+                  <th>App</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+
+                <!-- Cargando -->
+                <template x-if="cargando">
+                  <template x-for="i in 5" :key="i">
+                    <tr class="skeleton-row">
+                      <td><span class="skeleton-bar" style="width:140px"></span></td>
+                      <td><span class="skeleton-bar" style="width:110px"></span></td>
+                      <td><span class="skeleton-bar" style="width:100px"></span></td>
+                      <td><span class="skeleton-bar" style="width:160px"></span></td>
+                      <td><span class="skeleton-bar" style="width:70px"></span></td>
+                      <td><span class="skeleton-bar" style="width:50px"></span></td>
+                      <td><span class="skeleton-bar" style="width:60px"></span></td>
+                      <td></td>
+                    </tr>
+                  </template>
+                </template>
+
+                <!-- Vacío -->
+                <template x-if="!cargando && proveedores.length === 0">
+                  <tr>
+                    <td colspan="8">
+                      <div class="empty-state">
+                        <i data-lucide="briefcase"></i>
+                        <h3>No providers yet</h3>
+                        <p x-text="busqueda ? 'No results match your search.' : 'Get started by adding your first provider.'"></p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <!-- Filas -->
+                <template x-if="!cargando && proveedores.length > 0">
+                  <template x-for="p in proveedores" :key="p.id">
+                    <tr @click="abrirEditar(p.id)" style="cursor:pointer">
+                      <td>
+                        <div class="client-name" x-text="p.nombre_empresa"></div>
+                        <div x-show="p.tarifa_referencia" class="client-meta" x-text="p.tarifa_referencia"></div>
+                      </td>
+                      <td x-text="p.contacto_nombre || '—'"></td>
+                      <td x-text="p.telefono || '—'"></td>
+                      <td>
+                        <div class="service-chips">
+                          <template x-for="r in (p.rubros || []).slice(0, 3)" :key="r">
+                            <span class="service-chip-readonly" x-text="r"></span>
+                          </template>
+                          <span x-show="(p.rubros || []).length > 3"
+                                class="service-chip-readonly"
+                                x-text="`+${p.rubros.length - 3}`"></span>
+                          <span x-show="!(p.rubros || []).length" style="color:var(--color-text-soft);font-size:var(--text-xs)">—</span>
+                        </div>
+                      </td>
+                      <td>
+                        <template x-if="p.rating">
+                          <div class="rating-stars">
+                            <template x-for="n in 5" :key="n">
+                              <span x-text="n <= Math.round(p.rating) ? '★' : '☆'"
+                                    :class="n > Math.round(p.rating) ? 'star-empty' : ''"></span>
+                            </template>
+                          </div>
+                        </template>
+                        <template x-if="!p.rating">
+                          <span style="color:var(--color-text-soft);font-size:var(--text-xs)">—</span>
+                        </template>
+                      </td>
+                      <td>
+                        <span class="badge-status"
+                              :class="p.usuario_id ? 'badge-app-yes' : 'badge-app-no'"
+                              x-text="p.usuario_id ? 'Yes' : 'No'"></span>
+                      </td>
+                      <td>
+                        <span class="badge-status"
+                              :class="p.activo ? 'badge-status-active' : 'badge-status-inactive'"
+                              x-text="p.activo ? 'Active' : 'Inactive'"></span>
+                      </td>
+                      <td>
+                        <div class="row-actions" @click.stop>
+                          <button @click="abrirEditar(p.id)" title="Edit">
+                            <i data-lucide="pencil"></i>
+                          </button>
+                          <button @click="confirmarToggle(p)" :title="p.activo ? 'Deactivate' : 'Activate'">
+                            <i :data-lucide="p.activo ? 'archive' : 'archive-restore'"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ─── Paginación ───────────────────────── -->
+          <div class="pagination" x-show="totalPaginas > 1">
+            <div>Showing <strong x-text="rangoMostrado()"></strong> of <strong x-text="total"></strong></div>
+            <div class="pagination-controls">
+              <button @click="irPagina(pagina - 1)" :disabled="pagina === 1">
+                <i data-lucide="chevron-left" style="width:14px;height:14px"></i>
+              </button>
+              <template x-for="n in numerosPagina()" :key="n">
+                <button @click="irPagina(n)" :class="n === pagina ? 'active' : ''" x-text="n"></button>
+              </template>
+              <button @click="irPagina(pagina + 1)" :disabled="pagina === totalPaginas">
+                <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+              </button>
+            </div>
+          </div>
+
+
+          <!-- ════════════════════════════════════════
+               MODAL: Crear / Editar Provider
+          ════════════════════════════════════════ -->
+          <div class="modal-overlay" x-show="modalAbierto" @click.self="cerrarModal()" x-cloak>
+            <div class="modal-form">
+
+              <div class="modal-header">
+                <h2 x-text="formData.id ? 'Edit Provider' : 'New Provider'"></h2>
+                <button class="modal-close" @click="cerrarModal()">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+
+                <!-- Company -->
+                <div class="form-section">
+                  <h3><i data-lucide="building"></i> Company Information</h3>
+                  <div class="field">
+                    <label class="field-label">Company Name <span class="required">*</span></label>
+                    <input type="text" x-model="formData.nombre_empresa" placeholder="ABC Electric Inc.">
+                  </div>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Contact Person</label>
+                      <input type="text" x-model="formData.contacto_nombre" placeholder="John Smith">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Phone</label>
+                      <input type="tel" x-model="formData.telefono" placeholder="+1 (305) 000-0000">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Email</label>
+                      <input type="email" x-model="formData.email" placeholder="contact@example.com">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Reference Rate</label>
+                      <input type="text" x-model="formData.tarifa_referencia" placeholder="e.g. $80/hour, Quote on demand">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="form-section">
+                  <h3><i data-lucide="tags"></i> Categories / Services</h3>
+                  <div class="chips-input">
+                    <template x-for="(chip, idx) in formData.rubros" :key="chip">
+                      <span class="chip">
+                        <span x-text="chip"></span>
+                        <button type="button" @click="formData.rubros.splice(idx, 1)">
+                          <i data-lucide="x"></i>
+                        </button>
+                      </span>
+                    </template>
+                    <input type="text" x-model="nuevoRubro"
+                           placeholder="Type and press Enter…"
+                           @keydown.enter.prevent="agregarRubro()">
+                  </div>
+                  <div class="chip-suggestions">
+                    <template x-for="r in rubrosSugeridos.filter(r => !(formData.rubros || []).includes(r))" :key="r">
+                      <button type="button" class="chip-suggestion"
+                              @click="formData.rubros.push(r); $nextTick(() => window.lucide?.createIcons())"
+                              x-text="r"></button>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Rating -->
+                <div class="form-section">
+                  <h3><i data-lucide="star"></i> Rating</h3>
+                  <div class="field">
+                    <label class="field-label">Internal Rating</label>
+                    <div class="rating-input">
+                      <template x-for="n in 5" :key="n">
+                        <button type="button"
+                                :class="n <= (formData.rating || 0) ? 'filled' : ''"
+                                @click="formData.rating = n">
+                          <i data-lucide="star"
+                             :fill="n <= (formData.rating || 0) ? 'currentColor' : 'none'"
+                             style="width:22px;height:22px"></i>
+                        </button>
+                      </template>
+                      <button type="button" class="rating-clear"
+                              x-show="formData.rating"
+                              @click="formData.rating = null">Clear</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- App Access -->
+                <div class="form-section">
+                  <h3><i data-lucide="smartphone"></i> Mobile App Access</h3>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-app-access"
+                           x-model="usaApp"
+                           :disabled="!!formData.id && !!formData.usuario_id">
+                    <label for="toggle-app-access">Allow this provider to access the mobile app</label>
+                  </div>
+                  <span class="field-help" x-show="formData.id && formData.usuario_id">
+                    Provider already has app access. To revoke access, deactivate the provider.
+                  </span>
+
+                  <div x-show="usaApp" style="margin-top:var(--space-md)">
+                    <div class="account-info-box" x-show="!formData.id">
+                      <strong>How app access works:</strong>
+                      An invitation email will be sent to the provider with a link to set their password.
+                      They will be able to view assigned service orders and submit reports.
+                    </div>
+                    <div class="form-grid-2">
+                      <div class="field">
+                        <label class="field-label">App Login Email <span class="required">*</span></label>
+                        <input type="email" x-model="appAccountEmail"
+                               :disabled="!!formData.usuario_id"
+                               placeholder="provider@example.com">
+                      </div>
+                      <div class="field">
+                        <label class="field-label">Preferred Language</label>
+                        <select x-model="appAccountIdioma">
+                          <option value="en">English</option>
+                          <option value="es">Spanish</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-ghost" style="margin-top:8px"
+                            x-show="formData.id && formData.usuario_id"
+                            @click="enviarReset()" :disabled="enviandoReset">
+                      <i data-lucide="mail"></i>
+                      <span x-text="enviandoReset ? 'Sending…' : 'Send Password Reset'"></span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Tax / 1099 -->
+                <div class="form-section">
+                  <h3><i data-lucide="file-text"></i> Tax Compliance (1099)</h3>
+                  <div class="tax-section">
+                    <strong>Why this matters:</strong>
+                    If AK pays this provider more than $600 in a year, the IRS requires a 1099-NEC form.
+                    Collect the W-9 and tax ID upfront to streamline year-end reporting.
+                  </div>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Tax Form Type</label>
+                      <select x-model="formData.tipo_fiscal">
+                        <option value="">— Not specified —</option>
+                        <template x-for="t in tiposFiscales" :key="t.value">
+                          <option :value="t.value" x-text="t.label"></option>
+                        </template>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Tax ID (SSN / EIN)</label>
+                      <input type="text" x-model="formData.tax_id" placeholder="XX-XXXXXXX">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">W-9 Received Date</label>
+                      <input type="date" x-model="formData.w9_recibido_en">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">W-9 Document</label>
+                      <div class="doc-upload-placeholder">
+                        <i data-lucide="upload-cloud"></i>
+                        <div>Document upload coming soon</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Documents -->
+                <div class="form-section">
+                  <h3><i data-lucide="file-check"></i> Documents</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Insurance Certificate</label>
+                      <div class="doc-upload-placeholder">
+                        <i data-lucide="upload-cloud"></i>
+                        <div>Document upload coming soon</div>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">License</label>
+                      <div class="doc-upload-placeholder">
+                        <i data-lucide="upload-cloud"></i>
+                        <div>Document upload coming soon</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="form-section">
+                  <h3><i data-lucide="sticky-note"></i> Notes</h3>
+                  <div class="field">
+                    <textarea x-model="formData.notas" rows="3"
+                              placeholder="Internal notes about this provider…"></textarea>
+                  </div>
+                </div>
+
+                <!-- Status (solo edit) -->
+                <div class="form-section" x-show="formData.id">
+                  <h3><i data-lucide="toggle-right"></i> Status</h3>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-prov-activo" x-model="formData.activo">
+                    <label for="toggle-prov-activo">
+                      <span x-show="formData.activo">Active — available for new service orders</span>
+                      <span x-show="!formData.activo">Inactive — archived (no new assignments)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Error -->
+                <div class="alert alert-error" x-show="errorMsg" x-text="errorMsg"></div>
+
+              </div><!-- /modal-body -->
+
+              <div class="modal-footer">
+                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando">Cancel</button>
+                <button class="btn btn-primary" @click="guardar()" :disabled="guardando">
+                  <span x-show="guardando" class="spinner spinner-sm"></span>
+                  <span x-text="guardando ? 'Saving…' : 'Save'"></span>
+                </button>
+              </div>
+
+            </div><!-- /modal-form -->
+          </div><!-- /modal-overlay -->
+
+          <!-- Toasts -->
+          <div class="toast-container">
+            <template x-for="t in toasts" :key="t.id">
+              <div class="toast" :class="`toast-${t.tipo}`" x-text="t.mensaje"></div>
+            </template>
+          </div>
+
+        </div><!-- /clients-page -->
+      </div><!-- /content -->
+    </main>
+  </div><!-- /panel-layout -->
+
+  <script type="module">
+    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import {
+      listarProveedores, obtenerProveedor, crearProveedor,
+      actualizarProveedor, toggleProveedorActivo,
+      reenviarPasswordResetProveedor, traducirError,
+      RUBROS_SUGERIDOS, TIPOS_FISCALES
+    } from './js/providers-api.js';
+
+    (async () => {
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin', 'owner', 'admin'],
+        itemActivo: 'providers',
+        tituloHeader: 'Providers'
+      });
+      if (!usuario) return;
+
+      // ── Definir componente DESPUÉS de iniciarPanel, ANTES de Alpine ──
+      window.providersPage = function () {
+        return {
+          // Listado
+          proveedores:    [],
+          total:          0,
+          cargando:       true,
+          busqueda:       '',
+          filtroRubro:    'all',
+          filtroApp:      'all',
+          filtroEstado:   'all',
+          pagina:         1,
+          porPagina:      20,
+          rubrosSugeridos: RUBROS_SUGERIDOS,
+          tiposFiscales:   TIPOS_FISCALES,
+
+          // Modal
+          modalAbierto:    false,
+          guardando:       false,
+          enviandoReset:   false,
+          errorMsg:        '',
+          formData:        {},
+          nuevoRubro:      '',
+          usaApp:          false,
+          appAccountEmail: '',
+          appAccountIdioma:'en',
+
+          // Toasts
+          toasts: [],
+
+          // ─── Init ────────────────────────────────
+          formDataVacio() {
+            return {
+              id: null, nombre_empresa: '', contacto_nombre: '',
+              email: '', telefono: '', rubros: [],
+              tarifa_referencia: '', rating: null,
+              notas: '', tipo_fiscal: '', tax_id: '',
+              w9_recibido_en: null, activo: true, usuario_id: null
+            };
+          },
+
+          async init() {
+            this.formData = this.formDataVacio();
+            await this.recargar();
+          },
+
+          // ─── Carga ───────────────────────────────
+          async recargar() {
+            this.cargando = true;
+            const { data, count, error } = await listarProveedores({
+              busqueda:  this.busqueda,
+              rubro:     this.filtroRubro,
+              conApp:    this.filtroApp,
+              estado:    this.filtroEstado,
+              pagina:    this.pagina,
+              porPagina: this.porPagina
+            });
+            if (error) { this.mostrarToast('error', traducirError(error)); this.cargando = false; return; }
+            this.proveedores = data;
+            this.total       = count;
+            this.cargando    = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Paginación ──────────────────────────
+          get totalPaginas() { return Math.max(1, Math.ceil(this.total / this.porPagina)); },
+          rangoMostrado() {
+            if (!this.total) return '0';
+            const desde = (this.pagina - 1) * this.porPagina + 1;
+            const hasta = Math.min(this.pagina * this.porPagina, this.total);
+            return `${desde}–${hasta}`;
+          },
+          numerosPagina() {
+            const inicio = Math.max(1, this.pagina - 2);
+            const fin    = Math.min(this.totalPaginas, inicio + 4);
+            const arr = [];
+            for (let i = inicio; i <= fin; i++) arr.push(i);
+            return arr;
+          },
+          irPagina(n) {
+            if (n < 1 || n > this.totalPaginas) return;
+            this.pagina = n;
+            this.recargar();
+          },
+
+          // ─── Abrir modal Nuevo ───────────────────
+          async abrirNuevo() {
+            this.formData        = this.formDataVacio();
+            this.usaApp          = false;
+            this.appAccountEmail = '';
+            this.appAccountIdioma= 'en';
+            this.errorMsg        = '';
+            this.modalAbierto    = true;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Abrir modal Editar ──────────────────
+          async abrirEditar(id) {
+            this.modalAbierto = true;
+            this.errorMsg     = '';
+            const { proveedor, error } = await obtenerProveedor(id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.modalAbierto = false;
+              return;
+            }
+            const p = proveedor;
+            this.formData = {
+              id:               p.id,
+              nombre_empresa:   p.nombre_empresa,
+              contacto_nombre:  p.contacto_nombre  || '',
+              email:            p.email            || '',
+              telefono:         p.telefono         || '',
+              rubros:           [...(p.rubros      || [])],
+              tarifa_referencia:p.tarifa_referencia|| '',
+              rating:           p.rating           || null,
+              notas:            p.notas            || '',
+              tipo_fiscal:      p.tipo_fiscal      || '',
+              tax_id:           p.tax_id           || '',
+              w9_recibido_en:   p.w9_recibido_en   || null,
+              activo:           p.activo,
+              usuario_id:       p.usuario_id       || null,
+            };
+            this.usaApp           = !!p.usuario_id;
+            this.appAccountEmail  = p.usuarios?.email  || p.email  || '';
+            this.appAccountIdioma = p.usuarios?.idioma || 'en';
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cerrarModal() { this.modalAbierto = false; },
+
+          // ─── Agregar chip ────────────────────────
+          agregarRubro() {
+            const v = (this.nuevoRubro || '').trim();
+            if (!v) return;
+            if (!this.formData.rubros) this.formData.rubros = [];
+            if (!this.formData.rubros.includes(v)) this.formData.rubros.push(v);
+            this.nuevoRubro = '';
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Enviar reset ────────────────────────
+          async enviarReset() {
+            if (!this.appAccountEmail) return;
+            this.enviandoReset = true;
+            const { error } = await reenviarPasswordResetProveedor(this.appAccountEmail);
+            this.enviandoReset = false;
+            if (error) { this.mostrarToast('error', traducirError(error)); return; }
+            this.mostrarToast('success', 'Password reset email sent.');
+          },
+
+          // ─── Guardar ─────────────────────────────
+          async guardar() {
+            this.errorMsg = '';
+            if (!this.formData.nombre_empresa?.trim()) {
+              this.errorMsg = 'Company name is required.'; return;
+            }
+            if (this.usaApp && !this.formData.id && !this.appAccountEmail) {
+              this.errorMsg = 'App login email is required when enabling app access.'; return;
+            }
+            if (this.usaApp && !this.formData.id &&
+                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.appAccountEmail)) {
+              this.errorMsg = 'Please enter a valid app login email.'; return;
+            }
+
+            this.guardando = true;
+
+            const datos = {
+              nombre_empresa:    this.formData.nombre_empresa.trim(),
+              contacto_nombre:   this.formData.contacto_nombre?.trim()    || null,
+              email:             this.formData.email?.trim()               || null,
+              telefono:          this.formData.telefono?.trim()            || null,
+              rubros:            this.formData.rubros                      || [],
+              tarifa_referencia: this.formData.tarifa_referencia?.trim()  || null,
+              rating:            this.formData.rating                      || null,
+              notas:             this.formData.notas?.trim()               || null,
+              tipo_fiscal:       this.formData.tipo_fiscal                 || null,
+              tax_id:            this.formData.tax_id?.trim()              || null,
+              w9_recibido_en:    this.formData.w9_recibido_en              || null,
+            };
+
+            let error;
+            if (!this.formData.id) {
+              ({ error } = await crearProveedor(
+                { ...datos, activo: true },
+                this.usaApp,
+                this.usaApp ? { email: this.appAccountEmail, idioma: this.appAccountIdioma } : null
+              ));
+            } else {
+              datos.activo = this.formData.activo;
+              ({ error } = await actualizarProveedor(this.formData.id, datos));
+            }
+
+            this.guardando = false;
+            if (error) { this.errorMsg = traducirError(error); return; }
+
+            this.modalAbierto = false;
+            this.mostrarToast('success', !this.formData.id
+              ? (this.usaApp ? 'Provider created. Invitation email sent.' : 'Provider created.')
+              : 'Provider updated.');
+            await this.recargar();
+          },
+
+          // ─── Toggle activo ───────────────────────
+          async confirmarToggle(p) {
+            const accion = p.activo ? 'deactivate' : 'activate';
+            if (!confirm(`Are you sure you want to ${accion} "${p.nombre_empresa}"?`)) return;
+            const { error } = await toggleProveedorActivo(p.id, !p.activo);
+            if (error) { this.mostrarToast('error', traducirError(error)); return; }
+            this.mostrarToast('success', p.activo ? 'Provider deactivated.' : 'Provider activated.');
+            await this.recargar();
+          },
+
+          // ─── Toasts ──────────────────────────────
+          mostrarToast(tipo, mensaje) {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, tipo, mensaje });
+            setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 3500);
+          }
+        };
+      };
+
+      // ── Importar y arrancar Alpine ────────────────────
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
+</body>
+</html>

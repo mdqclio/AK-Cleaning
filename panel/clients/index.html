@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clients · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/panel/css/panel.css">
+  <link rel="stylesheet" href="./css/clients.css">
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <header class="header" id="header"></header>
+
+      <div class="content">
+        <div class="clients-page" x-data="clientsPage()" x-init="init()" x-cloak>
+
+          <!-- Toolbar -->
+          <div class="clients-toolbar">
+            <div class="clients-search">
+              <i data-lucide="search"></i>
+              <input
+                type="text"
+                placeholder="Search by name, email, phone..."
+                x-model="busqueda"
+                @input.debounce.300ms="pagina = 1; recargar()"
+              >
+            </div>
+            <select x-model="filtroEstado" @change="pagina = 1; recargar()">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <select x-model="filtroTipo" @change="pagina = 1; recargar()">
+              <option value="all">All types</option>
+              <option value="individual">Individual</option>
+              <option value="business">Business</option>
+              <option value="trust">Trust</option>
+              <option value="llc">LLC</option>
+            </select>
+            <button class="btn btn-primary btn-new" @click="abrirNuevo()">
+              <i data-lucide="plus"></i>
+              New Client
+            </button>
+          </div>
+
+          <!-- Tabla -->
+          <div class="clients-table-wrapper">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Properties</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Skeleton loading -->
+                <template x-if="cargando">
+                  <template x-for="i in 5" :key="i">
+                    <tr class="skeleton-row">
+                      <td><span class="skeleton-bar" style="width: 140px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 80px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 100px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 160px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 30px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 60px"></span></td>
+                      <td></td>
+                    </tr>
+                  </template>
+                </template>
+
+                <!-- Empty state -->
+                <template x-if="!cargando && clientes.length === 0">
+                  <tr>
+                    <td colspan="7">
+                      <div class="empty-state">
+                        <i data-lucide="users"></i>
+                        <h3>No clients found</h3>
+                        <p x-text="busqueda ? 'No results match your search.' : 'Get started by adding your first client.'"></p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <!-- Filas reales -->
+                <template x-if="!cargando">
+                  <template x-for="cliente in clientes" :key="cliente.id">
+                    <tr @click="abrirEditar(cliente.id)">
+                      <td>
+                        <div class="client-name">
+                          <span x-text="`${cliente.nombre} ${cliente.apellido}`"></span>
+                          <small x-show="cliente.razon_social" x-text="cliente.razon_social"></small>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge-type" :class="`badge-type-${cliente.tipo}`" x-text="cliente.tipo"></span>
+                      </td>
+                      <td x-text="cliente.telefono"></td>
+                      <td x-text="cliente.email || '—'"></td>
+                      <td x-text="conteoPropiedades[cliente.id] || 0"></td>
+                      <td>
+                        <span
+                          class="badge-status"
+                          :class="cliente.activo ? 'badge-status-active' : 'badge-status-inactive'"
+                          x-text="cliente.activo ? 'Active' : 'Inactive'"
+                        ></span>
+                      </td>
+                      <td>
+                        <div class="row-actions" @click.stop>
+                          <button @click="abrirEditar(cliente.id)" title="Edit">
+                            <i data-lucide="pencil"></i>
+                          </button>
+                          <button
+                            @click="confirmarToggle(cliente)"
+                            :title="cliente.activo ? 'Deactivate' : 'Activate'"
+                          >
+                            <i :data-lucide="cliente.activo ? 'archive' : 'archive-restore'"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Paginación -->
+          <div class="pagination" x-show="!cargando && totalPaginas > 1">
+            <div>
+              Showing <strong x-text="rangoMostrado()"></strong> of <strong x-text="total"></strong>
+            </div>
+            <div class="pagination-controls">
+              <button @click="irPagina(pagina - 1)" :disabled="pagina === 1">
+                <i data-lucide="chevron-left" style="width:14px;height:14px"></i>
+              </button>
+              <template x-for="n in numerosPagina()" :key="n">
+                <button @click="irPagina(n)" :class="n === pagina ? 'active' : ''" x-text="n"></button>
+              </template>
+              <button @click="irPagina(pagina + 1)" :disabled="pagina === totalPaginas">
+                <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Modal de form -->
+          <div class="modal-overlay" x-show="modalAbierto" @click.self="cerrarModal()" x-cloak>
+            <div class="modal-form" @click.stop>
+              <div class="modal-header">
+                <h2 x-text="formData.id ? 'Edit Client' : 'New Client'"></h2>
+                <button class="modal-close" @click="cerrarModal()">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+
+                <!-- Sección 1: Basic Information -->
+                <div class="form-section">
+                  <h3><i data-lucide="user"></i> Basic Information</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">First Name <span class="required">*</span></label>
+                      <input type="text" x-model="formData.nombre" placeholder="John">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Last Name <span class="required">*</span></label>
+                      <input type="text" x-model="formData.apellido" placeholder="Smith">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Phone <span class="required">*</span></label>
+                      <input type="tel" x-model="formData.telefono" placeholder="+1 305 000 0000">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Email</label>
+                      <input type="email" x-model="formData.email" placeholder="john@example.com">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Preferred Contact</label>
+                      <select x-model="formData.metodo_contacto">
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="email">Email</option>
+                        <option value="llamada">Phone Call</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sección 2: Type & Tax -->
+                <div class="form-section">
+                  <h3><i data-lucide="briefcase"></i> Client Type & Tax Information</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Client Type</label>
+                      <select x-model="formData.tipo">
+                        <option value="individual">Individual</option>
+                        <option value="business">Business</option>
+                        <option value="trust">Trust</option>
+                        <option value="llc">LLC</option>
+                      </select>
+                    </div>
+                    <div class="field" x-show="formData.tipo !== 'individual'">
+                      <label class="field-label">Legal / Business Name</label>
+                      <input type="text" x-model="formData.razon_social" placeholder="e.g. Smith Family Trust">
+                    </div>
+                    <div class="field" x-show="formData.tipo !== 'individual'">
+                      <label class="field-label">Tax ID (EIN / SSN)</label>
+                      <input type="text" x-model="formData.tax_id" placeholder="XX-XXXXXXX">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sección 3: Billing -->
+                <div class="form-section">
+                  <h3><i data-lucide="receipt"></i> Billing Information</h3>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-billto" x-model="usaBillToDistinto">
+                    <label for="toggle-billto">Bill to a different name / address</label>
+                  </div>
+                  <div x-show="usaBillToDistinto">
+                    <div class="form-grid-2">
+                      <div class="field">
+                        <label class="field-label">Bill To Name</label>
+                        <input type="text" x-model="formData.bill_to_name">
+                      </div>
+                      <div class="field">
+                        <label class="field-label">Bill To Email</label>
+                        <input type="email" x-model="formData.bill_to_email">
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Address Line 1</label>
+                      <input type="text" x-model="formData.bill_to_address_1">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Address Line 2</label>
+                      <input type="text" x-model="formData.bill_to_address_2" placeholder="Apt, suite, unit...">
+                    </div>
+                    <div class="form-grid-3">
+                      <div class="field">
+                        <label class="field-label">City</label>
+                        <input type="text" x-model="formData.bill_to_city">
+                      </div>
+                      <div class="field">
+                        <label class="field-label">State</label>
+                        <input type="text" x-model="formData.bill_to_state" maxlength="2" placeholder="FL">
+                      </div>
+                      <div class="field">
+                        <label class="field-label">ZIP</label>
+                        <input type="text" x-model="formData.bill_to_zip" maxlength="10">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sección 4: Contacts adicionales -->
+                <div class="form-section">
+                  <h3><i data-lucide="contact"></i> Additional Contacts</h3>
+                  <p class="field-help" style="margin-bottom: var(--space-md)">
+                    Add assistants, property managers, family members, or anyone else contactable for this client.
+                  </p>
+                  <div class="contacts-list">
+                    <template x-for="(contacto, idx) in contactos" :key="idx">
+                      <div class="contact-card">
+                        <div class="contact-card-actions">
+                          <button @click="contactos.splice(idx, 1)" title="Remove contact">
+                            <i data-lucide="trash-2"></i>
+                          </button>
+                        </div>
+                        <div class="form-grid-2">
+                          <div class="field">
+                            <label class="field-label">Name</label>
+                            <input type="text" x-model="contacto.nombre">
+                          </div>
+                          <div class="field">
+                            <label class="field-label">Role</label>
+                            <input type="text" x-model="contacto.rol" placeholder="e.g. Personal Assistant">
+                          </div>
+                          <div class="field">
+                            <label class="field-label">Phone</label>
+                            <input type="tel" x-model="contacto.telefono">
+                          </div>
+                          <div class="field">
+                            <label class="field-label">Email</label>
+                            <input type="email" x-model="contacto.email">
+                          </div>
+                        </div>
+                        <div class="contact-checkboxes">
+                          <label><input type="checkbox" x-model="contacto.es_principal"> Primary contact</label>
+                          <label><input type="checkbox" x-model="contacto.recibe_facturas"> Receives invoices</label>
+                          <label><input type="checkbox" x-model="contacto.recibe_reportes"> Receives reports</label>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                  <button class="btn-add-contact" @click="agregarContacto()">
+                    <i data-lucide="plus"></i> Add another contact
+                  </button>
+                </div>
+
+                <!-- Sección 5: VIP Notes -->
+                <div class="form-section">
+                  <h3><i data-lucide="star"></i> VIP Notes</h3>
+                  <div class="field">
+                    <textarea
+                      x-model="formData.notas_vip"
+                      placeholder="Preferences, restrictions, allergies, special requirements..."
+                      rows="4"
+                    ></textarea>
+                    <span class="field-help">Visible to the entire admin team.</span>
+                  </div>
+                </div>
+
+                <!-- Sección 6: Status (solo al editar) -->
+                <div class="form-section" x-show="formData.id">
+                  <h3><i data-lucide="toggle-right"></i> Status</h3>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-activo" x-model="formData.activo">
+                    <label for="toggle-activo">
+                      <span x-show="formData.activo">Active — client is currently being serviced</span>
+                      <span x-show="!formData.activo">Inactive — client is archived (no new orders)</span>
+                    </label>
+                  </div>
+                  <p class="field-help">
+                    Inactive clients remain in the system for historical records but can't have new service orders or invoices.
+                  </p>
+                </div>
+
+                <!-- Sección 7: Properties (solo lectura, solo al editar) -->
+                <div class="form-section" x-show="formData.id && propiedades.length > 0">
+                  <h3><i data-lucide="building-2"></i> Properties</h3>
+                  <ul style="list-style:none; padding:0; margin:0">
+                    <template x-for="p in propiedades" :key="p.id">
+                      <li style="padding:8px 0; border-bottom:1px solid var(--color-divider); display:flex; justify-content:space-between; align-items:center">
+                        <span x-text="p.nombre_referencia"></span>
+                        <span class="badge-type badge-type-individual" x-text="p.tipo"></span>
+                      </li>
+                    </template>
+                  </ul>
+                  <p class="field-help" style="margin-top: var(--space-sm)">Manage properties from the Properties module.</p>
+                </div>
+
+              </div>
+
+              <div class="modal-footer">
+                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando">Cancel</button>
+                <button
+                  class="btn btn-primary"
+                  @click="guardar()"
+                  :disabled="guardando"
+                  x-text="guardando ? 'Saving...' : 'Save'"
+                ></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toasts -->
+          <div class="toast-container">
+            <template x-for="t in toasts" :key="t.id">
+              <div class="toast" :class="`toast-${t.tipo}`" x-text="t.mensaje"></div>
+            </template>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import {
+      listarClientes,
+      contarPropiedadesPorCliente,
+      obtenerCliente,
+      crearCliente,
+      actualizarCliente,
+      toggleActivo,
+      guardarContactos,
+      propiedadesDelCliente,
+      traducirError
+    } from './js/clients-api.js';
+
+    (async () => {
+      // Inicializar shell: protege ruta, arma sidebar/header, activa lucide
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin', 'owner', 'admin'],
+        itemActivo: 'clients',
+        tituloHeader: 'Clients'
+      });
+      if (!usuario) return;
+
+      // Definir componente Alpine ANTES de importar y arrancar Alpine
+      window.clientsPage = function () {
+        return {
+          // ─── Estado del listado ─────────────────────────
+          clientes: [],
+          conteoPropiedades: {},
+          total: 0,
+          cargando: true,
+          busqueda: '',
+          filtroEstado: 'all',
+          filtroTipo: 'all',
+          pagina: 1,
+          porPagina: 20,
+
+          // ─── Estado del modal ───────────────────────────
+          modalAbierto: false,
+          guardando: false,
+          formData: {},
+          contactos: [],
+          propiedades: [],
+          usaBillToDistinto: false,
+
+          // ─── Toasts ─────────────────────────────────────
+          toasts: [],
+
+          formDataVacio() {
+            return {
+              id: null,
+              nombre: '',
+              apellido: '',
+              email: '',
+              telefono: '',
+              metodo_contacto: 'whatsapp',
+              tipo: 'individual',
+              razon_social: '',
+              tax_id: '',
+              bill_to_name: '',
+              bill_to_email: '',
+              bill_to_address_1: '',
+              bill_to_address_2: '',
+              bill_to_city: '',
+              bill_to_state: '',
+              bill_to_zip: '',
+              notas_vip: '',
+              activo: true
+            };
+          },
+
+          async init() {
+            this.formData = this.formDataVacio();
+            await this.recargar();
+          },
+
+          async recargar() {
+            this.cargando = true;
+            const { data, count, error } = await listarClientes({
+              busqueda:    this.busqueda,
+              estado:      this.filtroEstado,
+              tipo:        this.filtroTipo,
+              pagina:      this.pagina,
+              porPagina:   this.porPagina
+            });
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.cargando = false;
+              return;
+            }
+            this.clientes = data;
+            this.total = count;
+            this.conteoPropiedades = await contarPropiedadesPorCliente(data.map(c => c.id));
+            this.cargando = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Paginación ─────────────────────────────────
+          get totalPaginas() {
+            return Math.max(1, Math.ceil(this.total / this.porPagina));
+          },
+
+          rangoMostrado() {
+            if (this.total === 0) return '0';
+            const desde = (this.pagina - 1) * this.porPagina + 1;
+            const hasta = Math.min(this.pagina * this.porPagina, this.total);
+            return `${desde}–${hasta}`;
+          },
+
+          numerosPagina() {
+            const t = this.totalPaginas;
+            const p = this.pagina;
+            const arr = [];
+            const inicio = Math.max(1, p - 2);
+            const fin = Math.min(t, inicio + 4);
+            for (let i = inicio; i <= fin; i++) arr.push(i);
+            return arr;
+          },
+
+          irPagina(n) {
+            if (n < 1 || n > this.totalPaginas) return;
+            this.pagina = n;
+            this.recargar();
+          },
+
+          // ─── Modal: abrir nuevo ─────────────────────────
+          async abrirNuevo() {
+            this.formData = this.formDataVacio();
+            this.contactos = [];
+            this.propiedades = [];
+            this.usaBillToDistinto = false;
+            this.guardando = false;
+            this.modalAbierto = true;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Modal: abrir editar ────────────────────────
+          async abrirEditar(id) {
+            this.modalAbierto = true;
+            this.guardando = false;
+            this.propiedades = [];
+
+            const { cliente, contactos, error } = await obtenerCliente(id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.modalAbierto = false;
+              return;
+            }
+
+            this.formData = { ...cliente };
+            this.contactos = contactos.map(c => ({ ...c }));
+            this.usaBillToDistinto = !!(
+              cliente.bill_to_name ||
+              cliente.bill_to_email ||
+              cliente.bill_to_address_1
+            );
+
+            const { propiedades } = await propiedadesDelCliente(id);
+            this.propiedades = propiedades;
+
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cerrarModal() {
+            this.modalAbierto = false;
+          },
+
+          // ─── Contactos ──────────────────────────────────
+          agregarContacto() {
+            this.contactos.push({
+              nombre: '',
+              rol: '',
+              telefono: '',
+              email: '',
+              es_principal: false,
+              recibe_facturas: false,
+              recibe_reportes: false,
+              notas: ''
+            });
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ─── Guardar ────────────────────────────────────
+          async guardar() {
+            if (!this.formData.nombre?.trim() || !this.formData.apellido?.trim() || !this.formData.telefono?.trim()) {
+              this.mostrarToast('error', 'Please complete all required fields: first name, last name and phone.');
+              return;
+            }
+
+            this.guardando = true;
+
+            // Limpiar bill_to si toggle desactivado
+            if (!this.usaBillToDistinto) {
+              this.formData.bill_to_name      = null;
+              this.formData.bill_to_email     = null;
+              this.formData.bill_to_address_1 = null;
+              this.formData.bill_to_address_2 = null;
+              this.formData.bill_to_city      = null;
+              this.formData.bill_to_state     = null;
+              this.formData.bill_to_zip       = null;
+            }
+
+            // Limpiar campos de entidad si es individual
+            if (this.formData.tipo === 'individual') {
+              this.formData.razon_social = null;
+              this.formData.tax_id       = null;
+            }
+
+            // Armar payload sin campos de auditoría (los maneja Supabase/API)
+            const datos = { ...this.formData };
+            const idGuardado = datos.id;
+            delete datos.id;
+            delete datos.creado_en;
+            delete datos.creado_por;
+            delete datos.actualizado_en;
+            delete datos.actualizado_por;
+
+            let cliente, error;
+            if (idGuardado) {
+              ({ cliente, error } = await actualizarCliente(idGuardado, datos));
+            } else {
+              ({ cliente, error } = await crearCliente(datos));
+            }
+
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.guardando = false;
+              return;
+            }
+
+            // Guardar contactos (solo los que tienen nombre)
+            const contactosValidos = this.contactos
+              .filter(c => c.nombre?.trim())
+              .map(c => ({
+                nombre:           c.nombre.trim(),
+                rol:              c.rol    || null,
+                telefono:         c.telefono || null,
+                email:            c.email  || null,
+                es_principal:     !!c.es_principal,
+                recibe_facturas:  !!c.recibe_facturas,
+                recibe_reportes:  !!c.recibe_reportes,
+                notas:            c.notas  || null
+              }));
+
+            const { error: errContactos } = await guardarContactos(cliente.id, contactosValidos);
+            if (errContactos) {
+              this.mostrarToast('error', 'Client saved, but contacts failed: ' + traducirError(errContactos));
+            }
+
+            this.guardando = false;
+            this.modalAbierto = false;
+            this.mostrarToast('success', idGuardado ? 'Client updated successfully.' : 'Client created successfully.');
+            await this.recargar();
+          },
+
+          // ─── Toggle activo/inactivo ─────────────────────
+          async confirmarToggle(cliente) {
+            const accion = cliente.activo ? 'deactivate' : 'activate';
+            if (!confirm(`Are you sure you want to ${accion} ${cliente.nombre} ${cliente.apellido}?`)) return;
+
+            const { error } = await toggleActivo(cliente.id, !cliente.activo);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.mostrarToast('success', cliente.activo ? 'Client deactivated.' : 'Client activated.');
+            await this.recargar();
+          },
+
+          // ─── Toasts ─────────────────────────────────────
+          mostrarToast(tipo, mensaje) {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, tipo, mensaje });
+            setTimeout(() => {
+              this.toasts = this.toasts.filter(t => t.id !== id);
+            }, 3500);
+          }
+        };
+      };
+
+      // Importar y arrancar Alpine DESPUÉS de definir el componente
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+
+      // Activar lucide tras el primer render de Alpine
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/panel/css/panel.css">
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <header class="header" id="header"></header>
+
+      <div class="content">
+        <!-- Welcome -->
+        <section class="welcome-section">
+          <h2 id="welcome-title">Welcome</h2>
+          <p>Here's what's happening at AK today.</p>
+        </section>
+
+        <!-- Metric cards -->
+        <section class="cards-grid" id="cards-grid">
+          <a href="/panel/clients/" class="metric-card">
+            <div class="metric-card-header">
+              <div class="metric-icon"><i data-lucide="users"></i></div>
+            </div>
+            <div class="metric-value" id="metric-clientes"><span class="metric-loading"></span></div>
+            <div class="metric-label">Active Clients</div>
+          </a>
+
+          <a href="/panel/properties/" class="metric-card">
+            <div class="metric-card-header">
+              <div class="metric-icon"><i data-lucide="building-2"></i></div>
+            </div>
+            <div class="metric-value" id="metric-propiedades"><span class="metric-loading"></span></div>
+            <div class="metric-label">Active Properties</div>
+          </a>
+
+          <a href="/panel/orders/" class="metric-card">
+            <div class="metric-card-header">
+              <div class="metric-icon"><i data-lucide="clipboard-list"></i></div>
+            </div>
+            <div class="metric-value">—</div>
+            <div class="metric-label">Service Orders Today</div>
+          </a>
+
+          <a href="/panel/invoices/" class="metric-card">
+            <div class="metric-card-header">
+              <div class="metric-icon"><i data-lucide="file-text"></i></div>
+            </div>
+            <div class="metric-value">—</div>
+            <div class="metric-label">Pending Invoices</div>
+          </a>
+
+          <a href="/panel/reports/" class="metric-card">
+            <div class="metric-card-header">
+              <div class="metric-icon"><i data-lucide="alert-circle"></i></div>
+            </div>
+            <div class="metric-value">—</div>
+            <div class="metric-label">Unread Reports</div>
+          </a>
+
+          <a href="/panel/staff/" class="metric-card">
+            <div class="metric-card-header">
+              <div class="metric-icon"><i data-lucide="user-circle-2"></i></div>
+            </div>
+            <div class="metric-value" id="metric-empleadas"><span class="metric-loading"></span></div>
+            <div class="metric-label">Active Staff</div>
+          </a>
+        </section>
+
+        <!-- Recent activity -->
+        <section class="activity-section">
+          <h3>Recent Activity</h3>
+          <div class="activity-empty">
+            <i data-lucide="inbox"></i>
+            <p>No recent activity yet.</p>
+            <p style="font-size: var(--text-sm); margin-top: var(--space-xs);">Activity will appear here as you create service orders, reports, and invoices.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { iniciarPanel } from './js/panel-shell.js';
+    import { supabase } from '/js/supabase-client.js';
+
+    (async () => {
+      // 1. Inicializar shell (protege ruta, arma sidebar/header, activa lucide)
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin','owner','admin','compras'],
+        itemActivo: 'dashboard',
+        tituloHeader: 'Dashboard'
+      });
+
+      if (!usuario) return;  // si redirigió, salir
+
+      // 2. Welcome con nombre real
+      document.getElementById('welcome-title').textContent =
+        `Welcome back, ${usuario.nombre}`;
+
+      // 3. Cargar métricas reales (count exact)
+      cargarMetrica('metric-clientes',    'clientes',    { activo: true });
+      cargarMetrica('metric-propiedades', 'propiedades', { activa: true });
+      cargarMetricaEmpleadas('metric-empleadas');
+
+      // Re-activar iconos lucide después de inyecciones del shell
+      if (window.lucide) window.lucide.createIcons();
+
+      async function cargarMetrica(elementoId, tabla, filtros = {}) {
+        let query = supabase.from(tabla).select('*', { count: 'exact', head: true });
+        for (const [k, v] of Object.entries(filtros)) query = query.eq(k, v);
+        const { count, error } = await query;
+        const el = document.getElementById(elementoId);
+        if (error) {
+          console.error(`Error cargando ${tabla}:`, error);
+          el.textContent = '—';
+        } else {
+          el.textContent = count ?? 0;
+        }
+      }
+
+      async function cargarMetricaEmpleadas(elementoId) {
+        // Empleadas activas: join con tabla usuarios
+        const { count, error } = await supabase
+          .from('empleadas')
+          .select('usuarios!inner(activo)', { count: 'exact', head: true })
+          .eq('usuarios.activo', true);
+        const el = document.getElementById(elementoId);
+        if (error) {
+          console.error('Error cargando empleadas:', error);
+          el.textContent = '—';
+        } else {
+          el.textContent = count ?? 0;
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
