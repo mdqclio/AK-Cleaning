@@ -1,142 +1,297 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title>Properties · AK Cleaning &amp; Management</title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2022.7">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000; min-height: 14.0px}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 11.0px 'Helvetica Neue'; color: #000000; color: rgba(0, 0, 0, 0.85); -webkit-text-stroke: rgba(0, 0, 0, 0.85); background-color: #ffffff; min-height: 13.0px}
-    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 11.0px 'Helvetica Neue'; color: #000000; color: rgba(0, 0, 0, 0.85); -webkit-text-stroke: rgba(0, 0, 0, 0.85); background-color: #ffffff}
-    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 11.0px Times; color: #000000; color: rgba(0, 0, 0, 0.85); -webkit-text-stroke: rgba(0, 0, 0, 0.85); background-color: #ffffff}
-    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 11.0px 'Helvetica Neue'; color: #000000; color: rgba(0, 0, 0, 0.85); -webkit-text-stroke: rgba(0, 0, 0, 0.85); min-height: 13.0px}
-    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000; min-height: 14.0px}
-    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 11.0px 'Helvetica Neue'; color: #000000; color: rgba(0, 0, 0, 0.85); -webkit-text-stroke: rgba(0, 0, 0, 0.85)}
-    p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000}
-    p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000}
-    p.p12 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 18.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000}
-    p.p13 {margin: 0.0px 0.0px 12.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000}
-    p.p15 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 11.0px 'Helvetica Neue'; color: #000000; color: rgba(0, 0, 0, 0.85); -webkit-text-stroke: rgba(0, 0, 0, 0.85); background-color: #b3b3b3}
-    p.p16 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 11.0px 'Helvetica Neue'; color: #000000; color: rgba(0, 0, 0, 0.85); -webkit-text-stroke: rgba(0, 0, 0, 0.85); background-color: #b3b3b3; min-height: 13.0px}
-    span.s1 {font-kerning: none}
-    span.s2 {font: 11.0px Times; font-kerning: none}
-    span.s3 {font: 11.0px 'Helvetica Neue'; font-kerning: none}
-    span.s4 {font-kerning: none; background-color: #ffffff}
-    span.s5 {font: 12.0px Times; font-kerning: none; color: #000000; -webkit-text-stroke: 0px #000000}
-    span.s6 {font-kerning: none; background-color: #b3b3b3}
-    span.s7 {font: 11.0px 'Helvetica Neue'; font-kerning: none; color: rgba(0, 0, 0, 0.85); background-color: #ffffff; -webkit-text-stroke: 0px rgba(0, 0, 0, 0.85)}
-    span.s8 {text-decoration: underline ; font-kerning: none}
-    td.td1 {width: 51.1px; margin: 0.5px 0.5px 0.5px 0.5px; padding: 1.0px 1.0px 1.0px 1.0px}
-    td.td2 {width: 31.3px; margin: 0.5px 0.5px 0.5px 0.5px; padding: 1.0px 1.0px 1.0px 1.0px}
-    td.td3 {width: 95.2px; margin: 0.5px 0.5px 0.5px 0.5px; padding: 1.0px 1.0px 1.0px 1.0px}
-    td.td4 {width: 25.1px; margin: 0.5px 0.5px 0.5px 0.5px; padding: 1.0px 1.0px 1.0px 1.0px}
-    td.td5 {width: 32.0px; margin: 0.5px 0.5px 0.5px 0.5px; padding: 1.0px 1.0px 1.0px 1.0px}
-    td.td6 {margin: 0.5px 0.5px 0.5px 0.5px; padding: 1.0px 1.0px 1.0px 1.0px}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Admin - Properties</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .required { color: var(--color-error); }
+        .form-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+        }
+        .dropdown-item.client-inactive {
+            opacity: 0.6;
+            background-color: #f5f5f5;
+        }
+        .client-inactive-badge {
+            font-size: 0.7rem;
+            background: #ddd;
+            padding: 2px 6px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+    </style>
 </head>
 <body>
-<p class="p1"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"></span><br></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">All clients</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">              </span></span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">            </span></span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">All buildings</span></p>
-<p class="p4"><span class="s3"><span class="Apple-converted-space">              </span></span><span class="s1">Standalone (no building)</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">              </span></span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">            </span></span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">All types</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">Apartment</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">House</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">Office</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">Other</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">            </span></span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">All statuses</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">Active</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">              </span></span><span class="s2">Inactive</span></p>
-<p class="p5"><span class="s4"><span class="Apple-converted-space">            </span></span></p>
-<p class="p6"><span class="s1"><i></i></span><br></p>
-<p class="p7"><span class="s5">Buildings </span><span class="s6">New Property<span class="Apple-converted-space"> </span></span></p>
-<table cellspacing="0" cellpadding="0">
-  <tbody>
-    <tr>
-      <td valign="middle" class="td1">
-        <p class="p8"><span class="s1"><b>Reference</b></span></p>
-      </td>
-      <td valign="middle" class="td2">
-        <p class="p8"><span class="s1"><b>Client</b></span></p>
-      </td>
-      <td valign="middle" class="td3">
-        <p class="p8"><span class="s1"><b>Building / Address</b></span></p>
-      </td>
-      <td valign="middle" class="td4">
-        <p class="p8"><span class="s1"><b>Type</b></span></p>
-      </td>
-      <td valign="middle" class="td5">
-        <p class="p8"><span class="s1"><b>Status</b></span></p>
-      </td>
-      <td valign="middle" class="td6">
-        <p class="p6"><span class="s1"><b></b></span><br></p>
-      </td>
-    </tr>
-  </tbody>
-</table>
-<p class="p1"><span class="s1"></span><br></p>
-<p class="p9"><span class="s1">Showing of<span class="Apple-converted-space"> </span></span></p>
-<p class="p1"><span class="s1"></span><br></p>
-<h2 style="margin: 0.0px 0.0px 14.9px 0.0px; font: 18.0px Times; color: #000000; -webkit-text-stroke: #000000; min-height: 23.0px"><span class="s1"><b></b></span><br></h2>
-<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 14.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Basic Information</b></span></h3>
-<p class="p9"><span class="s1">Reference Name * Short name to identify this property internally.<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Client *</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">                        </span></span><span class="s2">— Select client —</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">                        </span></span></p>
-<p class="p5"><span class="s4"><span class="Apple-converted-space">                      </span></span><span class="s5"><span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Type</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">                        </span></span><span class="s2">Apartment / Condo</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">                        </span></span><span class="s2">House</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">                        </span></span><span class="s2">Office</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">                        </span></span><span class="s2">Other</span></p>
-<p class="p5"><span class="s4"><span class="Apple-converted-space">                      </span></span><span class="s5"><span class="Apple-converted-space"> </span></span></p>
-<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 14.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Address</b></span></h3>
-<p class="p8"><span class="s1">In a Building</span></p>
-<p class="p8"><span class="s1">Standalone Address</span></p>
-<p class="p9"><span class="s1">Building *</span></p>
-<p class="p3"><span class="s1"><span class="Apple-converted-space">                          </span></span><span class="s2">— Select building —</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">                          </span></span></p>
-<p class="p9"><span class="s7"><span class="Apple-converted-space">                        </span></span><span class="s1"> Don't see it? </span><span class="s8">Add a new building</span><span class="s1"><span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Unit<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Address Line 1 *<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Address Line 2<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">City<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">State<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">ZIP<span class="Apple-converted-space"> </span></span></p>
-<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 14.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Access Information</b></span></h3>
-<p class="p12"><span class="s1"><b>Visible to staff:</b> This information is shown to assigned staff and providers when they have a service order at this property.<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Door Code / Lock Code<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Doorman / Concierge Instructions<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Key Location / Special Instructions<span class="Apple-converted-space"> </span></span></p>
-<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 14.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Special Notes</b></span></h3>
-<p class="p1"><span class="s1"></span><br></p>
-<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 14.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Status</b></span></h3>
-<p class="p9"><span class="s1">Active — property is currently being serviced Inactive — property is archived<span class="Apple-converted-space"> </span></span></p>
-<p class="p13"><span class="s1">Inactive properties remain in the system but can't have new service orders.</span></p>
-<p class="p7"><span class="s6">Cancel</span><span class="s5"><span class="Apple-converted-space"> </span></span></p>
-<h2 style="margin: 0.0px 0.0px 14.9px 0.0px; font: 18.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Manage Buildings</b></span></h2>
-<p class="p9"><span class="s1">Buildings group properties that share an address (condos, towers). Add a building first, then assign properties to it.<span class="Apple-converted-space"> </span></span></p>
-<h4 style="margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000; min-height: 14.0px"><span class="s1"><b></b></span><br></h4>
-<p class="p9"><span class="s1">Name *<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Address Line 1 *<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Address Line 2<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">City<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">State<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">ZIP *<span class="Apple-converted-space"> </span></span></p>
-<p class="p9"><span class="s1">Notes<span class="Apple-converted-space"> </span></span></p>
-<p class="p15"><span class="s1">Cancel</span></p>
-<p class="p16"><span class="s1"></span><br></p>
-<p class="p7"><span class="s6">Add New Building<span class="Apple-converted-space"> </span></span></p>
-<p class="p7"><span class="s6">Done</span><span class="s5"><span class="Apple-converted-space"> </span></span></p>
-<p class="p1"><span class="s1"></span><br></p>
+<div class="admin-container" x-data="propertiesManager()" x-init="init()" x-cloak>
+    <aside class="admin-sidebar">
+        <div class="sidebar-header"><h2>Menu</h2></div>
+        <nav class="sidebar-nav"><a href="/panel/dashboard" class="nav-item">🏠 Dashboard</a><a href="/panel/properties" class="nav-item active">🏢 Properties</a><a href="/panel/users" class="nav-item">👥 Users</a><a href="/panel/settings" class="nav-item">⚙️ Settings</a><a href="/auth/logout" class="nav-item">🚪 Logout</a></nav>
+    </aside>
+    <main class="admin-main">
+        <div class="page-header"><h1>Properties</h1><button class="btn btn-primary btn-sm" @click="abrirModalPropiedad(null)">+ New Property</button></div>
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead><tr><th>ID</th><th>Name</th><th>Client</th><th>Address</th><th>Buildings</th><th style="width:100px">Actions</th></tr></thead>
+                    <tbody>
+                        <template x-for="prop in propiedades" :key="prop.id">
+                            <tr><td x-text="prop.id"></td><td x-text="prop.nombre"></td><td x-text="prop.cliente_nombre || '—'"></td><td x-text="prop.direccion_1 || ''"></td><td x-text="(prop.edificios || []).length"></td><td><button class="btn btn-outline btn-sm" @click="abrirModalPropiedad(prop)">Edit</button> <button class="btn btn-outline btn-sm btn-danger" @click="eliminarPropiedad(prop.id)">Delete</button></td></tr>
+                        </template>
+                        <tr x-if="!propiedades || propiedades.length === 0"><td colspan="6" style="text-align:center">No properties found.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal New/Edit Property -->
+    <div x-show="modalPropiedadAbierto" x-cloak class="modal-overlay" @click.self="modalPropiedadAbierto = false">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header"><h3 x-text="propiedadEditando?.id ? 'Edit Property' : 'New Property'"></h3><button class="modal-close" @click="modalPropiedadAbierto = false">×</button></div>
+            <div class="modal-body">
+                <div class="field"><label class="field-label">Property Name <span class="required">*</span></label><input type="text" x-model="propiedadEditando.nombre" placeholder="Ocean Drive Plaza"></div>
+                <div class="field"><label class="field-label">Client <span class="required">*</span></label><select x-model="propiedadEditando.cliente_id" class="field-input"><option value="">-- Select Client --</option><template x-for="cli in clientesParaDropdown" :key="cli.id"><option :value="cli.id" x-text="cli.nombre + (cli.activo ? '' : ' (INACTIVE)')" :class="{'client-inactive': !cli.activo}"></option></template></select><div class="field-note">Only active clients appear. Inactive clients are shown for reference.</div></div>
+                <div class="field"><label class="field-label">Address Line 1</label><input type="text" x-model="propiedadEditando.direccion_1" placeholder="123 Main St"></div>
+                <div class="field"><label class="field-label">Address Line 2</label><input type="text" x-model="propiedadEditando.direccion_2" placeholder="Suite 400"></div>
+                <div class="form-grid-3"><div class="field"><label class="field-label">City</label><input type="text" x-model="propiedadEditando.ciudad"></div><div class="field"><label class="field-label">State</label><input type="text" x-model="propiedadEditando.state" maxlength="2"></div><div class="field"><label class="field-label">ZIP</label><input type="text" x-model="propiedadEditando.zip" maxlength="10"></div></div>
+                <div class="field"><label class="field-label">Notes</label><textarea x-model="propiedadEditando.notas" rows="2"></textarea></div>
+
+                <!-- Buildings Management Section (dentro del modal) -->
+                <div style="margin-top: var(--space-lg); border-top: 1px solid var(--color-border); padding-top: var(--space-md);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+                        <h4 style="margin:0">Buildings</h4>
+                        <button type="button" class="btn btn-sm btn-outline" @click="abrirModalEdificio(null)">+ Add Building</button>
+                    </div>
+                    <div x-show="(!propiedadEditando.edificios || propiedadEditando.edificios.length === 0)" class="empty-state" style="padding: var(--space-md); text-align: center; background: var(--color-bg); border-radius: var(--radius-md);">
+                        No buildings added yet.
+                    </div>
+                    <div x-show="propiedadEditando.edificios && propiedadEditando.edificios.length > 0">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead><tr><th>Name</th><th>Address</th><th>City</th><th>ZIP</th><th style="width:80px">Actions</th></tr></thead>
+                                <tbody>
+                                    <template x-for="(edif, idx) in propiedadEditando.edificios" :key="edif.id || idx">
+                                        <tr><td x-text="edif.nombre"></td><td x-text="edif.direccion_1"></td><td x-text="edif.ciudad"></td><td x-text="edif.zip"></td><td><button class="btn btn-outline btn-sm" @click="abrirModalEdificio(edif)">Edit</button> <button class="btn btn-outline btn-sm btn-danger" @click="eliminarEdificioLocal(idx)">Delete</button></td></tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-ghost" @click="modalPropiedadAbierto = false">Cancel</button><button class="btn btn-primary" @click="guardarPropiedad()" :disabled="guardando"><span x-text="guardando ? 'Saving...' : 'Save Property'"></span></button></div>
+        </div>
+    </div>
+
+    <!-- Modal Manage Buildings (independiente para crear/editar un edificio) -->
+    <div x-show="modalEdificioAbierto" x-cloak class="modal-overlay" @click.self="modalEdificioAbierto = false">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header"><h3 x-text="edificioEditando?.id ? 'Edit Building' : 'New Building'"></h3><button class="modal-close" @click="modalEdificioAbierto = false">×</button></div>
+            <div class="modal-body">
+                <!-- FIX: x-if en lugar de x-show para evitar evaluar edificioEditando cuando es null -->
+                <template x-if="edificioEditando">
+                    <div class="building-edit-form" style="margin-bottom: var(--space-md)">
+                        <div class="field">
+                            <label class="field-label">Name <span class="required">*</span></label>
+                            <input type="text" x-model="edificioEditando.nombre" placeholder="The Setai">
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Address Line 1 <span class="required">*</span></label>
+                            <input type="text" x-model="edificioEditando.direccion_1" placeholder="2001 Collins Ave">
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Address Line 2</label>
+                            <input type="text" x-model="edificioEditando.direccion_2">
+                        </div>
+                        <div class="form-grid-3">
+                            <div class="field">
+                                <label class="field-label">City</label>
+                                <input type="text" x-model="edificioEditando.ciudad">
+                            </div>
+                            <div class="field">
+                                <label class="field-label">State</label>
+                                <input type="text" x-model="edificioEditando.state" maxlength="2">
+                            </div>
+                            <div class="field">
+                                <label class="field-label">ZIP <span class="required">*</span></label>
+                                <input type="text" x-model="edificioEditando.zip" maxlength="10">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Notes</label>
+                            <textarea x-model="edificioEditando.notas" rows="2"></textarea>
+                        </div>
+                        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--space-md)">
+                            <button class="btn btn-ghost" @click="modalEdificioAbierto = false; edificioEditando = null">Cancel</button>
+                            <button class="btn btn-primary" @click="guardarEdificio()" :disabled="guardandoEdificio">
+                                <span x-text="guardandoEdificio ? 'Saving...' : 'Save Building'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function propertiesManager() {
+    return {
+        propiedades: [],
+        clientesParaDropdown: [],
+        modalPropiedadAbierto: false,
+        propiedadEditando: null,
+        guardando: false,
+        modalEdificioAbierto: false,
+        edificioEditando: null,
+        guardandoEdificio: false,
+
+        async init() {
+            await this.cargarPropiedades();
+            await this.listarClientesParaDropdown();
+        },
+
+        async cargarPropiedades() {
+            try {
+                const res = await fetch('/api/properties');
+                if (!res.ok) throw new Error('Error loading properties');
+                const data = await res.json();
+                this.propiedades = data.data || [];
+            } catch (error) {
+                console.error('Error loading properties:', error);
+                this.propiedades = [];
+            }
+        },
+
+        async listarClientesParaDropdown() {
+            try {
+                const res = await fetch('/api/clientes-dropdown');
+                if (!res.ok) throw new Error('Error loading clients');
+                const data = await res.json();
+                this.clientesParaDropdown = data.data || [];
+            } catch (error) {
+                console.error('Error loading clients:', error);
+                this.clientesParaDropdown = [];
+            }
+        },
+
+        abrirModalPropiedad(prop = null) {
+            if (prop) {
+                this.propiedadEditando = JSON.parse(JSON.stringify(prop));
+                if (!this.propiedadEditando.edificios) this.propiedadEditando.edificios = [];
+            } else {
+                this.propiedadEditando = {
+                    nombre: '',
+                    cliente_id: '',
+                    direccion_1: '',
+                    direccion_2: '',
+                    ciudad: '',
+                    state: '',
+                    zip: '',
+                    notas: '',
+                    edificios: []
+                };
+            }
+            this.modalPropiedadAbierto = true;
+        },
+
+        async guardarPropiedad() {
+            if (!this.propiedadEditando.nombre || !this.propiedadEditando.cliente_id) {
+                alert('Please fill in Property Name and Client');
+                return;
+            }
+            this.guardando = true;
+            try {
+                const url = this.propiedadEditando.id ? `/api/properties/${this.propiedadEditando.id}` : '/api/properties';
+                const method = this.propiedadEditando.id ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.propiedadEditando)
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Error saving property');
+                }
+                await this.cargarPropiedades();
+                this.modalPropiedadAbierto = false;
+                this.propiedadEditando = null;
+            } catch (error) {
+                console.error('Error saving property:', error);
+                alert(error.message);
+            } finally {
+                this.guardando = false;
+            }
+        },
+
+        async eliminarPropiedad(id) {
+            if (!confirm('Delete this property? This will also delete all associated buildings.')) return;
+            try {
+                const res = await fetch(`/api/properties/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Error deleting property');
+                await this.cargarPropiedades();
+            } catch (error) {
+                console.error('Error deleting property:', error);
+                alert('Error deleting property');
+            }
+        },
+
+        abrirModalEdificio(edificio = null) {
+            if (edificio) {
+                this.edificioEditando = JSON.parse(JSON.stringify(edificio));
+            } else {
+                this.edificioEditando = {
+                    nombre: '',
+                    direccion_1: '',
+                    direccion_2: '',
+                    ciudad: '',
+                    state: '',
+                    zip: '',
+                    notas: ''
+                };
+            }
+            this.modalEdificioAbierto = true;
+        },
+
+        guardarEdificio() {
+            if (!this.edificioEditando.nombre || !this.edificioEditando.direccion_1 || !this.edificioEditando.zip) {
+                alert('Please fill in Name, Address Line 1 and ZIP');
+                return;
+            }
+            if (!this.propiedadEditando) {
+                alert('No property selected');
+                this.modalEdificioAbierto = false;
+                this.edificioEditando = null;
+                return;
+            }
+            if (!this.propiedadEditando.edificios) this.propiedadEditando.edificios = [];
+
+            if (this.edificioEditando.id && typeof this.edificioEditando.id === 'number') {
+                const index = this.propiedadEditando.edificios.findIndex(e => e.id === this.edificioEditando.id);
+                if (index !== -1) {
+                    this.propiedadEditando.edificios[index] = { ...this.edificioEditando };
+                } else {
+                    this.propiedadEditando.edificios.push({ ...this.edificioEditando });
+                }
+            } else {
+                this.propiedadEditando.edificios.push({ ...this.edificioEditando });
+            }
+            this.modalEdificioAbierto = false;
+            this.edificioEditando = null;
+        },
+
+        eliminarEdificioLocal(index) {
+            if (!this.propiedadEditando.edificios) return;
+            this.propiedadEditando.edificios.splice(index, 1);
+        }
+    };
+}
+</script>
 </body>
 </html>
