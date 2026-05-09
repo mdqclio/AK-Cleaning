@@ -10,7 +10,7 @@ export async function listarPlantillas({ busqueda = '', idioma = 'all', servicio
     .from('plantillas_checklist')
     .select(`
       *,
-      servicios(id, nombre_en, nombre_es),
+      servicios!plantillas_checklist_servicio_id_fkey(id, nombre_en, nombre_es),
       plantilla_items(id)
     `)
     .order('nombre');
@@ -45,7 +45,7 @@ export async function obtenerPlantilla(id) {
     .from('plantillas_checklist')
     .select(`
       *,
-      servicios(id, nombre_en, nombre_es),
+      servicios!plantillas_checklist_servicio_id_fkey(id, nombre_en, nombre_es),
       plantilla_items(*)
     `)
     .eq('id', id)
