@@ -766,6 +766,28 @@
               }
             }
 
+            // Validación: si pasa a estado completada, verificar obligatorios pendientes
+            if (f.id && f.estado === 'completada') {
+              const obligatoriosPendientes = this.checklistItems.filter(i => i.obligatorio && !i.completado);
+              if (obligatoriosPendientes.length > 0) {
+                const motivo = prompt(
+                  `This order has ${obligatoriosPendientes.length} mandatory checklist item(s) not completed:\n\n` +
+                  obligatoriosPendientes.map(i => `- ${i.descripcion}`).join('\n') +
+                  `\n\nTo force completion, please enter a reason (admin override). Leave blank to cancel:`
+                );
+                if (!motivo || !motivo.trim()) {
+                  this.mostrarToast('error', 'Cannot complete order with pending mandatory items.');
+                  return;
+                }
+                // Agregar el motivo a las notas internas
+                const fecha = new Date().toISOString().split('T')[0];
+                const linea = `[${fecha}] Force-completed override: ${motivo.trim()}`;
+                f.notas_internas = f.notas_internas
+                  ? `${f.notas_internas}\n${linea}`
+                  : linea;
+              }
+            }
+
             this.guardando = true;
 
             const programada_en = datetimeLocalToISO(f.programada_local);
