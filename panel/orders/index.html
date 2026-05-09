@@ -1,41 +1,725 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Service Orders — AK Cleaning</title>
-  <link rel="stylesheet" href="/css/base.css" />
-  <link rel="stylesheet" href="/css/components.css" />
-  <link rel="stylesheet" href="/panel/css/panel.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Service Orders · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/panel/css/panel.css">
+  <link rel="stylesheet" href="/panel/clients/css/clients.css">
+  <link rel="stylesheet" href="/panel/staff/css/staff.css">
+  <link rel="stylesheet" href="./css/orders.css">
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="header" id="header"></header>
 
-<div id="panel-shell"></div>
+      <div class="content">
+        <div class="clients-page" x-data="ordersPage()" x-init="init()" x-cloak>
 
-<div id="page-content">
-  <div class="content-inner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:var(--space-md)">
-    <div style="width:64px;height:64px;border-radius:16px;background:var(--color-surface);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;margin:0 auto">
-      <i data-lucide="clipboard-list" style="width:32px;height:32px;color:var(--color-accent)"></i>
-    </div>
-    <h2 style="color:var(--color-primary);font-size:var(--text-xl)">Service Orders</h2>
-    <p style="color:var(--color-text-muted);max-width:400px;line-height:1.6">
-      Service order management is under development.<br>
-      This module will allow you to create, assign, and track cleaning orders across all properties.
-    </p>
-    <span class="badge badge-status-inactive" style="font-size:var(--text-sm);padding:6px 16px">Coming Soon</span>
+          <!-- View tabs -->
+          <div class="view-tabs">
+            <button class="view-tab" :class="vista === 'today' ? 'active' : ''" @click="cambiarVista('today')">
+              Today
+            </button>
+            <button class="view-tab" :class="vista === 'upcoming' ? 'active' : ''" @click="cambiarVista('upcoming')">
+              Upcoming
+            </button>
+            <button class="view-tab" :class="vista === 'past' ? 'active' : ''" @click="cambiarVista('past')">
+              Past
+            </button>
+            <button class="view-tab" :class="vista === 'all' ? 'active' : ''" @click="cambiarVista('all')">
+              All
+            </button>
+          </div>
+
+          <!-- Toolbar -->
+          <div class="clients-toolbar">
+            <div class="clients-search">
+              <i data-lucide="search"></i>
+              <input type="text" placeholder="Search description, notes..."
+                     x-model="busqueda" @input.debounce.300ms="pagina = 1; recargar()">
+            </div>
+            <select x-model="filtroEstado" @change="pagina = 1; recargar()">
+              <option value="all">All statuses</option>
+              <option value="borrador">Draft</option>
+              <option value="confirmada">Confirmed</option>
+              <option value="en_curso">In Progress</option>
+              <option value="completada">Completed</option>
+              <option value="cancelada">Cancelled</option>
+            </select>
+            <select x-model="filtroCliente" @change="pagina = 1; recargar()">
+              <option value="all">All clients</option>
+              <template x-for="c in clientesDropdown" :key="c.id">
+                <option :value="c.id" x-text="formatNombreCliente(c)"></option>
+              </template>
+            </select>
+            <button class="btn btn-primary btn-new" @click="abrirNuevo()">
+              <i data-lucide="plus"></i>
+              New Service Order
+            </button>
+          </div>
+
+          <!-- Table -->
+          <div class="clients-table-wrapper">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date / Time</th>
+                  <th>Client / Property</th>
+                  <th>Services</th>
+                  <th>Assigned</th>
+                  <th>Status</th>
+                  <th style="text-align:right">Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-if="cargando">
+                  <template x-for="i in 5">
+                    <tr class="skeleton-row">
+                      <td><span class="skeleton-bar" style="width: 40px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 100px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 160px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 140px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 120px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 80px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 60px"></span></td>
+                      <td></td>
+                    </tr>
+                  </template>
+                </template>
+
+                <template x-if="!cargando && ordenes.length === 0">
+                  <tr>
+                    <td colspan="8">
+                      <div class="empty-state">
+                        <i data-lucide="clipboard-list"></i>
+                        <h3>No service orders</h3>
+                        <p>Get started by creating your first service order.</p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <template x-for="os in ordenes" :key="os.id">
+                  <tr @click="abrirEditar(os.id)">
+                    <td><span class="os-number" x-text="`#${os.numero}`"></span></td>
+                    <td>
+                      <div class="os-datetime">
+                        <span class="os-date" x-text="formatFechaCorta(os.programada_en)"></span>
+                        <span class="os-time" x-text="formatHora(os.programada_en)"></span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="client-name">
+                        <span x-text="formatNombreCliente(os.clientes)"></span>
+                        <small x-text="os.propiedades?.nombre_referencia || '—'"></small>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="os-services-summary">
+                        <template x-for="s in (os.os_servicios || []).slice(0, 2)" :key="s.id">
+                          <div>
+                            <strong x-text="`${s.cantidad}x`"></strong>
+                            <span x-text="s.servicios?.nombre_en"></span>
+                          </div>
+                        </template>
+                        <span x-show="(os.os_servicios || []).length > 2" style="color: var(--color-text-soft)"
+                              x-text="`+${os.os_servicios.length - 2} more`"></span>
+                        <span x-show="(os.os_servicios || []).length === 0" style="color: var(--color-text-soft)">
+                          No services
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="os-assigned-summary">
+                        <template x-for="a in (os.os_asignados || []).slice(0, 2)" :key="a.id">
+                          <span class="os-assigned-pill" :class="a.proveedor_id ? 'provider' : ''">
+                            <i :data-lucide="a.empleada_id ? 'user-circle-2' : 'briefcase'"></i>
+                            <span x-text="formatNombreAsignado(a)"></span>
+                          </span>
+                        </template>
+                        <span x-show="(os.os_asignados || []).length > 2" style="color: var(--color-text-soft); font-size: 11px"
+                              x-text="`+${os.os_asignados.length - 2}`"></span>
+                        <span x-show="(os.os_asignados || []).length === 0" style="color: var(--color-warning); font-size: 11px">
+                          Unassigned
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge-estado"
+                            :style="estadoStyle(os.estado)"
+                            x-text="estadoLabelTxt(os.estado)"></span>
+                    </td>
+                    <td style="text-align:right">
+                      <strong x-text="formatMoneda(totalOS(os))"></strong>
+                    </td>
+                    <td>
+                      <div class="row-actions" @click.stop>
+                        <button @click="abrirEditar(os.id)" title="Edit">
+                          <i data-lucide="pencil"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination" x-show="totalPaginas > 1">
+            <div>Showing <strong x-text="rangoMostrado()"></strong> of <strong x-text="total"></strong></div>
+            <div class="pagination-controls">
+              <button @click="irPagina(pagina - 1)" :disabled="pagina === 1">
+                <i data-lucide="chevron-left" style="width:14px;height:14px"></i>
+              </button>
+              <template x-for="n in numerosPagina()">
+                <button @click="irPagina(n)" :class="n === pagina ? 'active' : ''" x-text="n"></button>
+              </template>
+              <button @click="irPagina(pagina + 1)" :disabled="pagina === totalPaginas">
+                <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ─── Modal Form ─────────────────────────────── -->
+          <div class="modal-overlay" x-show="modalAbierto" @click.self="cerrarModal()" x-cloak>
+            <div class="modal-form" style="max-width: 880px">
+              <div class="modal-header">
+                <h2 x-text="formData.id ? `Edit Service Order #${formData.numero}` : 'New Service Order'"></h2>
+                <button class="modal-close" @click="cerrarModal()">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+
+                <!-- Basic -->
+                <div class="form-section">
+                  <h3><i data-lucide="info"></i> Basic Information</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Client <span class="required">*</span></label>
+                      <select x-model="formData.cliente_id" @change="onClienteChange()">
+                        <option value="">— Select client —</option>
+                        <template x-for="c in clientesDropdown" :key="c.id">
+                          <option :value="c.id" x-text="formatNombreCliente(c)"></option>
+                        </template>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Property <span class="required">*</span></label>
+                      <select x-model="formData.propiedad_id" :disabled="!formData.cliente_id">
+                        <option value="">— Select property —</option>
+                        <template x-for="p in propiedadesDelCliente" :key="p.id">
+                          <option :value="p.id" x-text="p.nombre_referencia"></option>
+                        </template>
+                      </select>
+                      <span class="field-help" x-show="!formData.cliente_id">Select a client first.</span>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Date & Time <span class="required">*</span></label>
+                      <input type="datetime-local" x-model="formData.programada_local">
+                      <span class="field-help">Times are interpreted in Miami timezone (America/New_York).</span>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Estimated Duration (minutes)</label>
+                      <input type="number" x-model="formData.duracion_min" min="0" step="15" placeholder="e.g. 120">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Description / Instructions</label>
+                    <textarea x-model="formData.descripcion" rows="2"
+                              placeholder="What needs to be done at this property"></textarea>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Internal Notes</label>
+                    <textarea x-model="formData.notas_internas" rows="2"
+                              placeholder="Notes only visible to admin team (NOT shown to client or staff)"></textarea>
+                  </div>
+                </div>
+
+                <!-- Services -->
+                <div class="form-section">
+                  <h3><i data-lucide="layers"></i> Services</h3>
+                  <div class="os-services-list">
+                    <template x-for="(s, idx) in serviciosOS" :key="idx">
+                      <div class="os-service-row">
+                        <div class="field">
+                          <label class="field-label">Service</label>
+                          <select x-model="s.servicio_id" @change="onServicioChange(idx)">
+                            <option value="">— Select —</option>
+                            <template x-for="srv in serviciosDropdown" :key="srv.id">
+                              <option :value="srv.id" x-text="srv.nombre_en"></option>
+                            </template>
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label class="field-label">Qty</label>
+                          <input type="number" step="0.5" min="0" x-model="s.cantidad">
+                        </div>
+                        <div class="field">
+                          <label class="field-label">Unit Price</label>
+                          <input type="number" step="0.01" min="0" x-model="s.precio_unitario">
+                        </div>
+                        <div class="field">
+                          <label class="field-label">Notes</label>
+                          <input type="text" x-model="s.notas" placeholder="Optional">
+                        </div>
+                        <button class="delete-btn" @click="serviciosOS.splice(idx, 1)" title="Remove">
+                          <i data-lucide="trash-2"></i>
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                  <button class="btn-add-inline" @click="agregarServicio()">
+                    <i data-lucide="plus"></i> Add Service
+                  </button>
+
+                  <div class="os-total" x-show="serviciosOS.length > 0">
+                    <span class="os-total-label">Estimated Total</span>
+                    <span class="os-total-amount" x-text="formatMoneda(totalEstimado)"></span>
+                  </div>
+                </div>
+
+                <!-- Assignments -->
+                <div class="form-section">
+                  <h3><i data-lucide="users"></i> Assignments</h3>
+                  <div class="os-assignments-list">
+                    <template x-for="(a, idx) in asignacionesOS" :key="idx">
+                      <div class="os-assignment-row">
+                        <div class="field">
+                          <label class="field-label">Type</label>
+                          <select x-model="a.tipo" @change="a.id = ''">
+                            <option value="staff">Staff</option>
+                            <option value="provider">Provider</option>
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label class="field-label">Person / Company</label>
+                          <select x-model="a.id">
+                            <option value="">— Select —</option>
+                            <template x-if="a.tipo === 'staff'">
+                              <template x-for="e in staffDropdown" :key="e.id">
+                                <option :value="e.id" x-text="`${e.usuarios.nombre} ${e.usuarios.apellido}`"></option>
+                              </template>
+                            </template>
+                            <template x-if="a.tipo === 'provider'">
+                              <template x-for="p in providersDropdown" :key="p.id">
+                                <option :value="p.id" x-text="p.nombre_empresa"></option>
+                              </template>
+                            </template>
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label class="field-label">Role</label>
+                          <input type="text" x-model="a.rol_en_os" placeholder="Optional, e.g. Lead">
+                        </div>
+                        <button class="delete-btn" @click="asignacionesOS.splice(idx, 1)" title="Remove">
+                          <i data-lucide="trash-2"></i>
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                  <button class="btn-add-inline" @click="agregarAsignacion()">
+                    <i data-lucide="plus"></i> Add Assignment
+                  </button>
+                </div>
+
+                <!-- Status (only edit) -->
+                <div class="form-section" x-show="formData.id">
+                  <h3><i data-lucide="activity"></i> Status & Workflow</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Status</label>
+                      <select x-model="formData.estado">
+                        <option value="borrador">Draft</option>
+                        <option value="confirmada">Confirmed</option>
+                        <option value="en_curso">In Progress</option>
+                        <option value="completada">Completed</option>
+                        <option value="cancelada">Cancelled</option>
+                      </select>
+                    </div>
+                    <div class="field" x-show="formData.estado === 'completada'">
+                      <label class="field-label">Final Cost</label>
+                      <input type="number" step="0.01" min="0" x-model="formData.costo_final"
+                             :placeholder="`Estimated: ${formatMoneda(totalEstimado)}`">
+                      <span class="field-help">Leave blank to use estimated total.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Audit (only edit) -->
+                <div class="form-section" x-show="formData.id && auditInfo">
+                  <h3><i data-lucide="history"></i> Audit Trail</h3>
+                  <div class="audit-trail">
+                    <div x-show="auditInfo">
+                      <strong>Created:</strong>
+                      <span x-text="auditInfo?.creado_at"></span>
+                      <span x-text="auditInfo?.creado_by ? ` by ${auditInfo.creado_by}` : ''"></span>
+                    </div>
+                    <div x-show="auditInfo?.actualizado_at">
+                      <strong>Last updated:</strong>
+                      <span x-text="auditInfo?.actualizado_at"></span>
+                      <span x-text="auditInfo?.actualizado_by ? ` by ${auditInfo.actualizado_by}` : ''"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando">Cancel</button>
+                <button class="btn btn-primary" @click="guardar()" :disabled="guardando">
+                  <span x-text="guardando ? 'Saving...' : 'Save'"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toasts -->
+          <div class="toast-container">
+            <template x-for="t in toasts" :key="t.id">
+              <div class="toast" :class="`toast-${t.tipo}`" x-text="t.mensaje"></div>
+            </template>
+          </div>
+
+        </div>
+      </div>
+    </main>
   </div>
-</div>
 
-<script type="module">
-  import { iniciarPanel } from '/panel/js/panel-shell.js';
-  (async () => {
-    await iniciarPanel({
-      rolesPermitidos: ['superadmin', 'owner', 'admin'],
-      itemActivo: 'orders',
-      tituloHeader: 'Service Orders',
-    });
-    if (window.lucide) window.lucide.createIcons();
-  })();
-</script>
+  <script type="module">
+    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import {
+      listarOrdenes, obtenerOrden, crearOrden, actualizarOrden,
+      listarClientesActivos, listarPropiedadesDeCliente, listarServiciosActivos,
+      listarStaffActivos, listarProveedoresActivos,
+      traducirError
+    } from './js/orders-api.js';
+    import {
+      ESTADOS, estadoLabel, calcularTotalServicios, formatearMoneda,
+      formatearFecha, formatearFechaCorta,
+      isoToDatetimeLocal, datetimeLocalToISO,
+      nombreCliente, nombreAsignado
+    } from './js/orders-helpers.js';
+
+    (async () => {
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin','owner','admin'],
+        itemActivo: 'orders',
+        tituloHeader: 'Service Orders'
+      });
+      if (!usuario) return;
+
+      window.ordersPage = function () {
+        return {
+          ordenes: [],
+          total: 0,
+          cargando: true,
+          vista: 'today',
+          busqueda: '',
+          filtroEstado: 'all',
+          filtroCliente: 'all',
+          pagina: 1,
+          porPagina: 20,
+
+          clientesDropdown: [],
+          serviciosDropdown: [],
+          staffDropdown: [],
+          providersDropdown: [],
+          propiedadesDelCliente: [],
+
+          modalAbierto: false,
+          guardando: false,
+          formData: {},
+          serviciosOS: [],
+          asignacionesOS: [],
+          auditInfo: null,
+
+          toasts: [],
+
+          formDataVacio() {
+            return {
+              id: null, numero: null, cliente_id: '', propiedad_id: '',
+              programada_local: '', duracion_min: null,
+              descripcion: '', notas_internas: '',
+              estado: 'borrador', costo_estimado: null, costo_final: null,
+              version: 1
+            };
+          },
+
+          async init() {
+            this.formData = this.formDataVacio();
+            await this.cargarDropdowns();
+            await this.recargar();
+          },
+
+          async cargarDropdowns() {
+            const [clientesRes, serviciosRes, staffRes, provRes] = await Promise.all([
+              listarClientesActivos(),
+              listarServiciosActivos(),
+              listarStaffActivos(),
+              listarProveedoresActivos()
+            ]);
+            this.clientesDropdown = clientesRes.data;
+            this.serviciosDropdown = serviciosRes.data;
+            this.staffDropdown = staffRes.data;
+            this.providersDropdown = provRes.data;
+          },
+
+          async recargar() {
+            this.cargando = true;
+            const { data, count, error } = await listarOrdenes({
+              busqueda: this.busqueda,
+              estado: this.filtroEstado,
+              cliente_id: this.filtroCliente,
+              vista: this.vista,
+              pagina: this.pagina,
+              porPagina: this.porPagina
+            });
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.cargando = false;
+              return;
+            }
+            this.ordenes = data;
+            this.total = count;
+            this.cargando = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cambiarVista(v) {
+            this.vista = v;
+            this.pagina = 1;
+            this.recargar();
+          },
+
+          formatNombreCliente(c) { return nombreCliente(c); },
+          formatNombreAsignado(a) { return nombreAsignado(a); },
+          formatMoneda(n) { return formatearMoneda(n); },
+          formatFecha(iso) { return formatearFecha(iso); },
+          formatFechaCorta(iso) { return formatearFechaCorta(iso); },
+          formatHora(iso) {
+            if (!iso) return '';
+            return new Date(iso).toLocaleTimeString('en-US', {
+              timeZone: 'America/New_York',
+              hour: 'numeric', minute: '2-digit', hour12: true
+            });
+          },
+          estadoLabelTxt(e) { return estadoLabel(e); },
+          estadoStyle(e) {
+            const c = ESTADOS[e];
+            return c ? `color: ${c.color}; background: ${c.bg}` : '';
+          },
+          totalOS(os) {
+            return calcularTotalServicios(os.os_servicios || []);
+          },
+
+          get totalEstimado() {
+            return calcularTotalServicios(this.serviciosOS);
+          },
+
+          get totalPaginas() { return Math.max(1, Math.ceil(this.total / this.porPagina)); },
+          rangoMostrado() {
+            if (this.total === 0) return '0';
+            const desde = (this.pagina - 1) * this.porPagina + 1;
+            const hasta = Math.min(this.pagina * this.porPagina, this.total);
+            return `${desde}-${hasta}`;
+          },
+          numerosPagina() {
+            const t = this.totalPaginas;
+            const p = this.pagina;
+            const arr = [];
+            const inicio = Math.max(1, p - 2);
+            const fin = Math.min(t, inicio + 4);
+            for (let i = inicio; i <= fin; i++) arr.push(i);
+            return arr;
+          },
+          irPagina(n) {
+            if (n < 1 || n > this.totalPaginas) return;
+            this.pagina = n;
+            this.recargar();
+          },
+
+          async abrirNuevo() {
+            this.formData = this.formDataVacio();
+            this.serviciosOS = [];
+            this.asignacionesOS = [];
+            this.propiedadesDelCliente = [];
+            this.auditInfo = null;
+            this.modalAbierto = true;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async abrirEditar(id) {
+            this.modalAbierto = true;
+            const { orden, error } = await obtenerOrden(id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.modalAbierto = false;
+              return;
+            }
+
+            this.formData = {
+              id: orden.id,
+              numero: orden.numero,
+              cliente_id: orden.cliente_id,
+              propiedad_id: orden.propiedad_id,
+              programada_local: isoToDatetimeLocal(orden.programada_en),
+              duracion_min: orden.duracion_min,
+              descripcion: orden.descripcion || '',
+              notas_internas: orden.notas_internas || '',
+              estado: orden.estado,
+              costo_estimado: orden.costo_estimado,
+              costo_final: orden.costo_final,
+              version: orden.version
+            };
+
+            this.serviciosOS = (orden.os_servicios || []).map(s => ({
+              servicio_id: s.servicio_id,
+              cantidad: s.cantidad,
+              precio_unitario: s.precio_unitario,
+              notas: s.notas || ''
+            }));
+
+            this.asignacionesOS = (orden.os_asignados || []).map(a => ({
+              tipo: a.empleada_id ? 'staff' : 'provider',
+              id: a.empleada_id || a.proveedor_id,
+              rol_en_os: a.rol_en_os || ''
+            }));
+
+            const propRes = await listarPropiedadesDeCliente(orden.cliente_id);
+            this.propiedadesDelCliente = propRes.data;
+
+            this.auditInfo = {
+              creado_at: orden.creado_en ? formatearFecha(orden.creado_en) : null,
+              creado_by: orden.creado_por_user
+                ? `${orden.creado_por_user.nombre} ${orden.creado_por_user.apellido}` : null,
+              actualizado_at: orden.actualizado_en ? formatearFecha(orden.actualizado_en) : null,
+              actualizado_by: orden.actualizado_por_user
+                ? `${orden.actualizado_por_user.nombre} ${orden.actualizado_por_user.apellido}` : null
+            };
+
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cerrarModal() { this.modalAbierto = false; },
+
+          async onClienteChange() {
+            this.formData.propiedad_id = '';
+            if (!this.formData.cliente_id) {
+              this.propiedadesDelCliente = [];
+              return;
+            }
+            const { data } = await listarPropiedadesDeCliente(this.formData.cliente_id);
+            this.propiedadesDelCliente = data;
+          },
+
+          onServicioChange(idx) {
+            const sId = this.serviciosOS[idx].servicio_id;
+            const srv = this.serviciosDropdown.find(s => s.id === sId);
+            if (srv) {
+              this.serviciosOS[idx].precio_unitario = srv.precio_actual || 0;
+            }
+          },
+
+          agregarServicio() {
+            this.serviciosOS.push({
+              servicio_id: '', cantidad: 1, precio_unitario: 0, notas: ''
+            });
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          agregarAsignacion() {
+            this.asignacionesOS.push({
+              tipo: 'staff', id: '', rol_en_os: ''
+            });
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async guardar() {
+            const f = this.formData;
+            if (!f.cliente_id || !f.propiedad_id || !f.programada_local) {
+              this.mostrarToast('error', 'Client, property and date are required.');
+              return;
+            }
+            if (this.serviciosOS.length === 0) {
+              this.mostrarToast('error', 'Add at least one service.');
+              return;
+            }
+            for (const s of this.serviciosOS) {
+              if (!s.servicio_id) {
+                this.mostrarToast('error', 'All services must be selected.');
+                return;
+              }
+            }
+            for (const a of this.asignacionesOS) {
+              if (!a.id) {
+                this.mostrarToast('error', 'All assignments must have a person/company selected.');
+                return;
+              }
+            }
+
+            this.guardando = true;
+
+            const programada_en = datetimeLocalToISO(f.programada_local);
+            const total = calcularTotalServicios(this.serviciosOS);
+
+            const datosOS = {
+              cliente_id: f.cliente_id,
+              propiedad_id: f.propiedad_id,
+              programada_en,
+              duracion_min: f.duracion_min ? parseInt(f.duracion_min) : null,
+              descripcion: f.descripcion || null,
+              notas_internas: f.notas_internas || null,
+              estado: f.estado,
+              costo_estimado: total,
+              costo_final: f.estado === 'completada'
+                ? (f.costo_final ? parseFloat(f.costo_final) : total)
+                : (f.costo_final ? parseFloat(f.costo_final) : null)
+            };
+
+            let error;
+            if (f.id) {
+              ({ error } = await actualizarOrden(f.id, datosOS, this.serviciosOS, this.asignacionesOS, f.version));
+            } else {
+              ({ error } = await crearOrden(datosOS, this.serviciosOS, this.asignacionesOS));
+            }
+
+            this.guardando = false;
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+
+            this.modalAbierto = false;
+            this.mostrarToast('success', f.id ? 'Service order updated' : 'Service order created');
+            await this.recargar();
+          },
+
+          mostrarToast(tipo, mensaje) {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, tipo, mensaje });
+            setTimeout(() => {
+              this.toasts = this.toasts.filter(t => t.id !== id);
+            }, 3500);
+          }
+        };
+      };
+
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
 </body>
 </html>
