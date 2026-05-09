@@ -121,6 +121,102 @@ export async function listarServiciosParaSelect() {
   return { data: data || [], error };
 }
 
+// ─── CHECKLIST DE OS ─────────────────────────────────
+
+/**
+ * Lista los items del checklist de una OS específica, en orden.
+ */
+export async function listarChecklistOS(os_id) {
+  const { data, error } = await supabase
+    .from('os_checklist')
+    .select('*')
+    .eq('os_id', os_id)
+    .order('orden');
+  return { data: data || [], error };
+}
+
+/**
+ * Lista las plantillas activas (para el dropdown del modal de OS).
+ */
+export async function listarPlantillasActivas() {
+  const { data, error } = await supabase
+    .from('plantillas_checklist')
+    .select(`
+      id, nombre, idioma, servicio_id,
+      plantilla_items(id)
+    `)
+    .eq('activa', true)
+    .order('nombre');
+
+  const enriquecidas = (data || []).map(p => ({
+    ...p,
+    cantidad_items: (p.plantilla_items || []).length
+  }));
+
+  return { data: enriquecidas, error };
+}
+
+/**
+ * Aplica una plantilla a una OS: copia los items de la plantilla.
+ * Si reemplazar=true, borra el checklist actual antes.
+ */
+export async function aplicarPlantillaAOS(os_id, plantilla_id, reemplazar = true) {
+  // Obtener items de la plantilla
+  const { data: items, error: errItems } = await supabase
+    .from('plantilla_items')
+    .select('descripcion, orden, obligatorio')
+    .eq('plantilla_id', plantilla_id)
+    .order('orden');
+
+  if (errItems) return { error: errItems, count: 0 };
+
+  if (reemplazar) {
+    await supabase.from('os_checklist').delete().eq('os_id', os_id);
+  }
+
+  if (!items || items.length === 0) return { error: null, count: 0 };
+
+  const filas = items.map((it, idx) => ({
+    os_id,
+    descripcion: it.descripcion,
+    orden: idx + 1,
+    obligatorio: !!it.obligatorio,
+    completado: false
+  }));
+
+  const { error } = await supabase
+    .from('os_checklist')
+    .insert(filas);
+
+  return { error, count: filas.length };
+}
+
+/**
+ * Marca un item del checklist de OS como completado o no.
+ */
+export async function toggleItemChecklistOS(item_id, completado) {
+  const { data: { user } } = await supabase.auth.getUser();
+  let usuario_id = null;
+  if (user) {
+    const { data: u } = await supabase
+      .from('usuarios').select('id').eq('auth_id', user.id).single();
+    usuario_id = u?.id || null;
+  }
+
+  const updates = {
+    completado,
+    completado_en: completado ? new Date().toISOString() : null,
+    completado_por: completado ? usuario_id : null
+  };
+
+  const { error } = await supabase
+    .from('os_checklist')
+    .update(updates)
+    .eq('id', item_id);
+
+  return { error };
+}
+
 // ─── ERROR HELPER ────────────────────────────────────
 
 export function traducirError(error) {
