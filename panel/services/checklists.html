@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checklist Templates · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/panel/css/panel.css">
+  <link rel="stylesheet" href="/panel/clients/css/clients.css">
+  <link rel="stylesheet" href="/panel/services/css/services.css">
+  <style>
+    .items-list { display: flex; flex-direction: column; gap: 6px; }
+    .item-row {
+      display: grid;
+      grid-template-columns: 32px 1fr 100px 32px 32px 32px;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+    }
+    .item-row .item-num {
+      font-size: var(--text-xs);
+      color: var(--color-text-soft);
+      text-align: center;
+      font-weight: 600;
+    }
+    .item-row input[type="text"] { padding: 7px 9px; font-size: var(--text-sm); }
+    .item-row .toggle-mandatory {
+      display: flex; align-items: center; gap: 4px;
+      font-size: var(--text-xs); color: var(--color-text-muted);
+    }
+    .item-row button.icon-btn {
+      width: 32px; height: 32px; border: none;
+      background: var(--color-surface); border-radius: 6px;
+      cursor: pointer; color: var(--color-text-muted);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .item-row button.icon-btn:hover { background: white; color: var(--color-primary); }
+    .item-row button.icon-btn.danger:hover { color: var(--color-danger); }
+    .item-row button.icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .item-row button.icon-btn svg { width: 14px; height: 14px; }
+
+    @media (max-width: 700px) {
+      .item-row { grid-template-columns: 1fr; gap: 6px; }
+    }
+
+    .add-item-form {
+      margin-top: 10px;
+      display: flex; gap: 8px; align-items: center;
+    }
+    .add-item-form input[type="text"] { flex: 1; padding: 9px; font-size: var(--text-sm); }
+  </style>
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="header" id="header"></header>
+
+      <div class="content">
+        <div class="clients-page" x-data="checklistsPage()" x-init="init()" x-cloak>
+
+          <div style="margin-bottom: var(--space-md)">
+            <a href="/panel/services/" style="color: var(--color-text-muted); font-size: var(--text-sm); text-decoration: none; display: inline-flex; align-items: center; gap: 4px">
+              <i data-lucide="chevron-left" style="width:14px;height:14px"></i> Back to Services Catalog
+            </a>
+          </div>
+
+          <!-- Toolbar -->
+          <div class="clients-toolbar">
+            <div class="clients-search">
+              <i data-lucide="search"></i>
+              <input type="text" placeholder="Search by template name..."
+                     x-model="busqueda" @input.debounce.300ms="recargar()">
+            </div>
+            <select x-model="filtroIdioma" @change="recargar()">
+              <option value="all">All languages</option>
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+            </select>
+            <select x-model="filtroEstado" @change="recargar()">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <button class="btn btn-primary btn-new" @click="abrirNuevo()">
+              <i data-lucide="plus"></i>
+              New Template
+            </button>
+          </div>
+
+          <!-- Table -->
+          <div class="clients-table-wrapper">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Language</th>
+                  <th>Linked Service</th>
+                  <th>Items</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-if="cargando">
+                  <template x-for="i in 4">
+                    <tr class="skeleton-row">
+                      <td><span class="skeleton-bar" style="width: 200px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 60px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 140px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 40px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 70px"></span></td>
+                      <td></td>
+                    </tr>
+                  </template>
+                </template>
+
+                <template x-if="!cargando && plantillas.length === 0">
+                  <tr>
+                    <td colspan="6">
+                      <div class="empty-state">
+                        <i data-lucide="list-checks"></i>
+                        <h3>No checklist templates yet</h3>
+                        <p>Create your first template to standardize service checklists.</p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <template x-for="p in plantillas" :key="p.id">
+                  <tr @click="abrirEditar(p.id)">
+                    <td>
+                      <div class="client-name">
+                        <span x-text="p.nombre"></span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge-status" :class="p.idioma === 'en' ? 'badge-app-yes' : 'badge-app-no'"
+                            x-text="p.idioma === 'en' ? 'English' : 'Spanish'"></span>
+                    </td>
+                    <td x-text="p.servicios?.nombre_en || '—'"></td>
+                    <td>
+                      <strong x-text="p.cantidad_items"></strong>
+                    </td>
+                    <td>
+                      <span class="badge-status" :class="p.activa ? 'badge-status-active' : 'badge-status-inactive'"
+                            x-text="p.activa ? 'Active' : 'Inactive'"></span>
+                    </td>
+                    <td>
+                      <div class="row-actions" @click.stop>
+                        <button @click="abrirEditar(p.id)" title="Edit">
+                          <i data-lucide="pencil"></i>
+                        </button>
+                        <button @click="confirmarToggle(p)" :title="p.activa ? 'Deactivate' : 'Activate'">
+                          <i :data-lucide="p.activa ? 'archive' : 'archive-restore'"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Modal -->
+          <div class="modal-overlay" x-show="modalAbierto" @click.self="cerrarModal()" x-cloak>
+            <div class="modal-form" style="max-width: 760px">
+              <div class="modal-header">
+                <h2 x-text="formData.id ? 'Edit Checklist Template' : 'New Checklist Template'"></h2>
+                <button class="modal-close" @click="cerrarModal()">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+
+                <div class="form-section">
+                  <h3><i data-lucide="info"></i> Template Information</h3>
+                  <div class="field">
+                    <label class="field-label">Template Name <span class="required">*</span></label>
+                    <input type="text" x-model="formData.nombre" placeholder="e.g. Standard Cleaning Checklist">
+                  </div>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Language <span class="required">*</span></label>
+                      <select x-model="formData.idioma">
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Linked Service (optional)</label>
+                      <select x-model="formData.servicio_id">
+                        <option value="">— None —</option>
+                        <template x-for="s in serviciosDropdown" :key="s.id">
+                          <option :value="s.id" x-text="s.nombre_en"></option>
+                        </template>
+                      </select>
+                      <span class="field-help">If linked, this template will be suggested when creating service orders for this service.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-section">
+                  <h3>
+                    <i data-lucide="list-checks"></i> Checklist Items
+                    <span x-show="items.length > 0" style="font-weight: 400; color: var(--color-text-soft); font-size: var(--text-xs); margin-left: 8px"
+                          x-text="`(${items.length} items)`"></span>
+                  </h3>
+
+                  <div class="items-list" x-show="items.length > 0">
+                    <template x-for="(it, idx) in items" :key="idx">
+                      <div class="item-row">
+                        <span class="item-num" x-text="idx + 1"></span>
+                        <input type="text" x-model="it.descripcion" placeholder="Item description...">
+                        <label class="toggle-mandatory">
+                          <input type="checkbox" x-model="it.obligatorio">
+                          Mandatory
+                        </label>
+                        <button class="icon-btn" @click="moverArriba(idx)" :disabled="idx === 0" title="Move up">
+                          <i data-lucide="chevron-up"></i>
+                        </button>
+                        <button class="icon-btn" @click="moverAbajo(idx)" :disabled="idx === items.length - 1" title="Move down">
+                          <i data-lucide="chevron-down"></i>
+                        </button>
+                        <button class="icon-btn danger" @click="items.splice(idx, 1)" title="Remove">
+                          <i data-lucide="trash-2"></i>
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+
+                  <div class="add-item-form">
+                    <input type="text" x-model="nuevoItem"
+                           placeholder="New item description..."
+                           @keydown.enter.prevent="agregarItem()">
+                    <label class="toggle-mandatory">
+                      <input type="checkbox" x-model="nuevoItemObligatorio">
+                      Mandatory
+                    </label>
+                    <button class="btn btn-ghost" @click="agregarItem()">
+                      <i data-lucide="plus"></i> Add
+                    </button>
+                  </div>
+
+                  <span class="field-help" style="margin-top: var(--space-sm); display: block">
+                    Mandatory items must be checked before a service order can be marked as completed.
+                  </span>
+                </div>
+
+                <div class="form-section" x-show="formData.id">
+                  <h3><i data-lucide="toggle-right"></i> Status</h3>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="toggle-activa" x-model="formData.activa">
+                    <label for="toggle-activa">
+                      <span x-show="formData.activa">Active — available to apply on service orders</span>
+                      <span x-show="!formData.activa">Inactive — hidden from selectors</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando">Cancel</button>
+                <button class="btn btn-primary" @click="guardar()" :disabled="guardando">
+                  <span x-text="guardando ? 'Saving...' : 'Save'"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toasts -->
+          <div class="toast-container">
+            <template x-for="t in toasts" :key="t.id">
+              <div class="toast" :class="`toast-${t.tipo}`" x-text="t.mensaje"></div>
+            </template>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import {
+      listarPlantillas, obtenerPlantilla, crearPlantilla, actualizarPlantilla,
+      togglePlantillaActiva, guardarItemsPlantilla, listarServiciosParaSelect,
+      traducirError
+    } from './js/checklists-api.js';
+
+    (async () => {
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin','owner','admin'],
+        itemActivo: 'services',
+        tituloHeader: 'Checklist Templates'
+      });
+      if (!usuario) return;
+
+      window.checklistsPage = function () {
+        return {
+          plantillas: [],
+          cargando: true,
+          busqueda: '',
+          filtroIdioma: 'all',
+          filtroEstado: 'all',
+
+          serviciosDropdown: [],
+
+          modalAbierto: false,
+          guardando: false,
+          formData: {},
+          items: [],
+          nuevoItem: '',
+          nuevoItemObligatorio: false,
+
+          toasts: [],
+
+          formDataVacio() {
+            return {
+              id: null,
+              nombre: '',
+              idioma: 'en',
+              servicio_id: '',
+              activa: true
+            };
+          },
+
+          async init() {
+            this.formData = this.formDataVacio();
+            const { data: srv } = await listarServiciosParaSelect();
+            this.serviciosDropdown = srv;
+            await this.recargar();
+          },
+
+          async recargar() {
+            this.cargando = true;
+            const { data, error } = await listarPlantillas({
+              busqueda: this.busqueda,
+              idioma: this.filtroIdioma,
+              estado: this.filtroEstado
+            });
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.cargando = false;
+              return;
+            }
+            this.plantillas = data;
+            this.cargando = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async abrirNuevo() {
+            this.formData = this.formDataVacio();
+            this.items = [];
+            this.nuevoItem = '';
+            this.nuevoItemObligatorio = false;
+            this.modalAbierto = true;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async abrirEditar(id) {
+            this.modalAbierto = true;
+            const { plantilla, error } = await obtenerPlantilla(id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.modalAbierto = false;
+              return;
+            }
+            this.formData = {
+              id: plantilla.id,
+              nombre: plantilla.nombre,
+              idioma: plantilla.idioma,
+              servicio_id: plantilla.servicio_id || '',
+              activa: plantilla.activa
+            };
+            this.items = (plantilla.plantilla_items || []).map(it => ({
+              descripcion: it.descripcion,
+              obligatorio: it.obligatorio
+            }));
+            this.nuevoItem = '';
+            this.nuevoItemObligatorio = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cerrarModal() { this.modalAbierto = false; },
+
+          agregarItem() {
+            const v = (this.nuevoItem || '').trim();
+            if (!v) return;
+            this.items.push({
+              descripcion: v,
+              obligatorio: this.nuevoItemObligatorio
+            });
+            this.nuevoItem = '';
+            this.nuevoItemObligatorio = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          moverArriba(idx) {
+            if (idx === 0) return;
+            const tmp = this.items[idx - 1];
+            this.items[idx - 1] = this.items[idx];
+            this.items[idx] = tmp;
+          },
+
+          moverAbajo(idx) {
+            if (idx === this.items.length - 1) return;
+            const tmp = this.items[idx + 1];
+            this.items[idx + 1] = this.items[idx];
+            this.items[idx] = tmp;
+          },
+
+          async guardar() {
+            const f = this.formData;
+            if (!f.nombre) {
+              this.mostrarToast('error', 'Template name is required.');
+              return;
+            }
+            if (this.items.length === 0) {
+              this.mostrarToast('error', 'Add at least one item.');
+              return;
+            }
+            for (const it of this.items) {
+              if (!it.descripcion?.trim()) {
+                this.mostrarToast('error', 'All items must have a description.');
+                return;
+              }
+            }
+
+            this.guardando = true;
+
+            const datos = {
+              nombre: f.nombre,
+              idioma: f.idioma,
+              servicio_id: f.servicio_id || null,
+              activa: f.activa
+            };
+
+            let plantilla_id = f.id;
+            let error;
+
+            if (f.id) {
+              const r = await actualizarPlantilla(f.id, datos);
+              error = r.error;
+            } else {
+              const r = await crearPlantilla(datos);
+              error = r.error;
+              plantilla_id = r.plantilla?.id;
+            }
+
+            if (error) {
+              this.guardando = false;
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+
+            const { error: errItems } = await guardarItemsPlantilla(plantilla_id, this.items);
+
+            this.guardando = false;
+            if (errItems) {
+              this.mostrarToast('error', traducirError(errItems));
+              return;
+            }
+
+            this.modalAbierto = false;
+            this.mostrarToast('success', f.id ? 'Template updated' : 'Template created');
+            await this.recargar();
+          },
+
+          async confirmarToggle(p) {
+            const accion = p.activa ? 'deactivate' : 'activate';
+            if (!confirm(`Are you sure you want to ${accion} "${p.nombre}"?`)) return;
+            const { error } = await togglePlantillaActiva(p.id, !p.activa);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.mostrarToast('success', p.activa ? 'Template deactivated' : 'Template activated');
+            await this.recargar();
+          },
+
+          mostrarToast(tipo, mensaje) {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, tipo, mensaje });
+            setTimeout(() => {
+              this.toasts = this.toasts.filter(t => t.id !== id);
+            }, 3500);
+          }
+        };
+      };
+
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
+</body>
+</html>
