@@ -376,6 +376,12 @@
                         <span x-show="item.obligatorio" style="padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #fae5e4; color: #b03a35; text-transform: uppercase;">
                           Mandatory
                         </span>
+                        <button @click="eliminarChecklistItem(item)" title="Remove item"
+                                style="width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; cursor: pointer; color: var(--color-text-soft); display: flex; align-items: center; justify-content: center;"
+                                onmouseover="this.style.color='var(--color-danger)'; this.style.background='var(--color-surface)';"
+                                onmouseout="this.style.color='var(--color-text-soft)'; this.style.background='transparent';">
+                          <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                        </button>
                       </div>
                     </template>
                   </div>
@@ -457,7 +463,8 @@
     } from './js/orders-api.js';
     import {
       listarChecklistOS, listarPlantillasActivas,
-      aplicarPlantillaAOS, toggleItemChecklistOS
+      aplicarPlantillaAOS, toggleItemChecklistOS,
+      eliminarItemChecklistOS
     } from '/panel/services/js/checklists-api.js';
     import {
       ESTADOS, estadoLabel, calcularTotalServicios, formatearMoneda,
@@ -814,6 +821,18 @@
             }
             const r = await listarChecklistOS(this.formData.id);
             this.checklistItems = r.data || [];
+          },
+
+          async eliminarChecklistItem(item) {
+            if (!confirm(`Remove "${item.descripcion}" from checklist?`)) return;
+            const { error } = await eliminarItemChecklistOS(item.id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            const r = await listarChecklistOS(this.formData.id);
+            this.checklistItems = r.data || [];
+            this.mostrarToast('success', 'Item removed');
           },
 
           mostrarToast(tipo, mensaje) {

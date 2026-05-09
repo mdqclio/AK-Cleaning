@@ -192,6 +192,17 @@ export async function aplicarPlantillaAOS(os_id, plantilla_id, reemplazar = true
 }
 
 /**
+ * Borrar un item del checklist de OS.
+ */
+export async function eliminarItemChecklistOS(item_id) {
+  const { error } = await supabase
+    .from('os_checklist')
+    .delete()
+    .eq('id', item_id);
+  return { error };
+}
+
+/**
  * Marca un item del checklist de OS como completado o no.
  */
 export async function toggleItemChecklistOS(item_id, completado) {
