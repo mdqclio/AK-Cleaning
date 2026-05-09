@@ -334,6 +334,57 @@
                   </button>
                 </div>
 
+                <!-- Checklist (only edit) -->
+                <div class="form-section" x-show="formData.id">
+                  <h3>
+                    <i data-lucide="list-checks"></i> Checklist
+                    <span x-show="checklistItems.length > 0" style="font-weight: 400; color: var(--color-text-soft); font-size: var(--text-xs); margin-left: 8px"
+                          x-text="checklistResumen"></span>
+                  </h3>
+
+                  <!-- Apply template -->
+                  <div style="display: flex; gap: 8px; align-items: end; margin-bottom: var(--space-md)" x-show="plantillasDisponibles.length > 0">
+                    <div class="field" style="flex: 1; margin: 0">
+                      <label class="field-label">Apply Template</label>
+                      <select x-model="plantillaSeleccionada">
+                        <option value="">— Select a template —</option>
+                        <template x-for="p in plantillasDisponibles" :key="p.id">
+                          <option :value="p.id"
+                                  x-text="`${p.nombre} (${p.idioma === 'en' ? 'EN' : 'ES'}, ${p.cantidad_items} items)`"></option>
+                        </template>
+                      </select>
+                    </div>
+                    <button class="btn btn-ghost" @click="aplicarPlantilla()" :disabled="!plantillaSeleccionada || aplicandoPlantilla">
+                      <i data-lucide="check-square"></i>
+                      <span x-text="aplicandoPlantilla ? 'Applying...' : 'Apply'"></span>
+                    </button>
+                  </div>
+
+                  <span x-show="plantillasDisponibles.length === 0" class="field-help">
+                    No active templates available. Create one in Manage Checklists.
+                  </span>
+
+                  <!-- Lista de items -->
+                  <div x-show="checklistItems.length > 0" style="display: flex; flex-direction: column; gap: 6px;">
+                    <template x-for="item in checklistItems" :key="item.id">
+                      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius);">
+                        <input type="checkbox" :checked="item.completado"
+                               @change="toggleChecklistItem(item)"
+                               style="width: 18px; height: 18px; cursor: pointer;">
+                        <span :style="item.completado ? 'text-decoration: line-through; color: var(--color-text-soft); flex: 1;' : 'flex: 1;'"
+                              x-text="`${item.orden}. ${item.descripcion}`"></span>
+                        <span x-show="item.obligatorio" style="padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #fae5e4; color: #b03a35; text-transform: uppercase;">
+                          Mandatory
+                        </span>
+                      </div>
+                    </template>
+                  </div>
+
+                  <div x-show="checklistItems.length === 0 && plantillasDisponibles.length > 0" style="text-align: center; padding: var(--space-md); color: var(--color-text-soft); font-size: var(--text-sm)">
+                    No checklist items. Apply a template above.
+                  </div>
+                </div>
+
                 <!-- Status (only edit) -->
                 <div class="form-section" x-show="formData.id">
                   <h3><i data-lucide="activity"></i> Status & Workflow</h3>
@@ -405,6 +456,10 @@
       traducirError
     } from './js/orders-api.js';
     import {
+      listarChecklistOS, listarPlantillasActivas,
+      aplicarPlantillaAOS, toggleItemChecklistOS
+    } from '/panel/services/js/checklists-api.js';
+    import {
       ESTADOS, estadoLabel, calcularTotalServicios, formatearMoneda,
       formatearFecha, formatearFechaCorta,
       isoToDatetimeLocal, datetimeLocalToISO,
@@ -444,6 +499,13 @@
           asignacionesOS: [],
           auditInfo: null,
 
+          // Checklist
+          checklistItems: [],
+          plantillasDisponibles: [],
+          plantillaSeleccionada: '',
+          aplicandoPlantilla: false,
+
+          // Toasts
           toasts: [],
 
           formDataVacio() {
@@ -527,6 +589,12 @@
             return calcularTotalServicios(this.serviciosOS);
           },
 
+          get checklistResumen() {
+            const total = this.checklistItems.length;
+            const done = this.checklistItems.filter(i => i.completado).length;
+            return `(${done}/${total} done)`;
+          },
+
           get totalPaginas() { return Math.max(1, Math.ceil(this.total / this.porPagina)); },
           rangoMostrado() {
             if (this.total === 0) return '0';
@@ -555,6 +623,9 @@
             this.asignacionesOS = [];
             this.propiedadesDelCliente = [];
             this.auditInfo = null;
+            this.checklistItems = [];
+            this.plantillasDisponibles = [];
+            this.plantillaSeleccionada = '';
             this.modalAbierto = true;
             this.$nextTick(() => window.lucide?.createIcons());
           },
@@ -607,6 +678,8 @@
               actualizado_by: orden.actualizado_por_user
                 ? `${orden.actualizado_por_user.nombre} ${orden.actualizado_por_user.apellido}` : null
             };
+
+            await this.cargarChecklistYPlantillas(orden.id);
 
             this.$nextTick(() => window.lucide?.createIcons());
           },
@@ -703,6 +776,44 @@
             this.modalAbierto = false;
             this.mostrarToast('success', f.id ? 'Service order updated' : 'Service order created');
             await this.recargar();
+          },
+
+          // ─── Checklist ──────────────────────────────────
+          async cargarChecklistYPlantillas(os_id) {
+            const [chk, pls] = await Promise.all([
+              listarChecklistOS(os_id),
+              listarPlantillasActivas()
+            ]);
+            this.checklistItems = chk.data || [];
+            this.plantillasDisponibles = pls.data || [];
+          },
+
+          async aplicarPlantilla() {
+            if (!this.plantillaSeleccionada || !this.formData.id) return;
+            this.aplicandoPlantilla = true;
+            const { error } = await aplicarPlantillaAOS(
+              this.formData.id, this.plantillaSeleccionada, true
+            );
+            this.aplicandoPlantilla = false;
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.plantillaSeleccionada = '';
+            const r = await listarChecklistOS(this.formData.id);
+            this.checklistItems = r.data || [];
+            this.mostrarToast('success', 'Checklist applied');
+          },
+
+          async toggleChecklistItem(item) {
+            const nuevoEstado = !item.completado;
+            const { error } = await toggleItemChecklistOS(item.id, nuevoEstado);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            const r = await listarChecklistOS(this.formData.id);
+            this.checklistItems = r.data || [];
           },
 
           mostrarToast(tipo, mensaje) {
