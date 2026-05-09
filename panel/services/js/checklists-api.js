@@ -192,6 +192,34 @@ export async function aplicarPlantillaAOS(os_id, plantilla_id, reemplazar = true
 }
 
 /**
+ * Agregar un item manual al checklist de OS (no viene de plantilla).
+ */
+export async function agregarItemManualOS(os_id, descripcion, obligatorio = false) {
+  // Calcular siguiente orden
+  const { data: actuales } = await supabase
+    .from('os_checklist')
+    .select('orden')
+    .eq('os_id', os_id)
+    .order('orden', { ascending: false })
+    .limit(1);
+  const orden = (actuales?.[0]?.orden || 0) + 1;
+
+  const { data, error } = await supabase
+    .from('os_checklist')
+    .insert({
+      os_id,
+      descripcion,
+      orden,
+      obligatorio,
+      completado: false
+    })
+    .select()
+    .single();
+
+  return { item: data, error };
+}
+
+/**
  * Borrar un item del checklist de OS.
  */
 export async function eliminarItemChecklistOS(item_id) {

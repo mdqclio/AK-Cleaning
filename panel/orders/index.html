@@ -387,7 +387,21 @@
                   </div>
 
                   <div x-show="checklistItems.length === 0 && plantillasDisponibles.length > 0" style="text-align: center; padding: var(--space-md); color: var(--color-text-soft); font-size: var(--text-sm)">
-                    No checklist items. Apply a template above.
+                    No checklist items. Apply a template above or add items manually below.
+                  </div>
+
+                  <!-- Add manual item -->
+                  <div style="display: flex; gap: 8px; align-items: center; margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--color-divider)">
+                    <input type="text" x-model="nuevoItemDesc" placeholder="Add a manual item..."
+                           @keydown.enter.prevent="agregarItemManual()"
+                           style="flex: 1; padding: 8px;">
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap;">
+                      <input type="checkbox" x-model="nuevoItemMandatory">
+                      Mandatory
+                    </label>
+                    <button class="btn btn-ghost" @click="agregarItemManual()" :disabled="!nuevoItemDesc.trim()">
+                      <i data-lucide="plus"></i> Add
+                    </button>
                   </div>
                 </div>
 
@@ -464,7 +478,7 @@
     import {
       listarChecklistOS, listarPlantillasActivas,
       aplicarPlantillaAOS, toggleItemChecklistOS,
-      eliminarItemChecklistOS
+      eliminarItemChecklistOS, agregarItemManualOS
     } from '/panel/services/js/checklists-api.js';
     import {
       ESTADOS, estadoLabel, calcularTotalServicios, formatearMoneda,
@@ -511,6 +525,8 @@
           plantillasDisponibles: [],
           plantillaSeleccionada: '',
           aplicandoPlantilla: false,
+          nuevoItemDesc: '',
+          nuevoItemMandatory: false,
 
           // Toasts
           toasts: [],
@@ -633,6 +649,8 @@
             this.checklistItems = [];
             this.plantillasDisponibles = [];
             this.plantillaSeleccionada = '';
+            this.nuevoItemDesc = '';
+            this.nuevoItemMandatory = false;
             this.modalAbierto = true;
             this.$nextTick(() => window.lucide?.createIcons());
           },
@@ -819,6 +837,22 @@
               this.mostrarToast('error', traducirError(error));
               return;
             }
+            const r = await listarChecklistOS(this.formData.id);
+            this.checklistItems = r.data || [];
+          },
+
+          async agregarItemManual() {
+            const desc = (this.nuevoItemDesc || '').trim();
+            if (!desc || !this.formData.id) return;
+            const { error } = await agregarItemManualOS(
+              this.formData.id, desc, this.nuevoItemMandatory
+            );
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.nuevoItemDesc = '';
+            this.nuevoItemMandatory = false;
             const r = await listarChecklistOS(this.formData.id);
             this.checklistItems = r.data || [];
           },
