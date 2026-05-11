@@ -59,6 +59,7 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 5. **Status 300 + disk cache en Network tab** → tickear "Disable cache" en DevTools.
 6. **Chrome consola bloquea paste** → tipear `allow pasting` + Enter primero.
 7. **`cat > heredoc` por copy-paste** corrompe archivos JS/CSS con wrapper HTML. Usar siempre la herramienta `Write` directamente o GitHub web → `git pull`.
+8. **`<input type="date">` no muestra valor inicial en Alpine** → el browser no refleja el value aunque Alpine lo tenga correcto en `formData`. Fix: usar `:value` con binding explícito y `@change` en vez de `x-model`, o bien usar `x-effect` para forzar el valor. Workaround manual: el usuario puede tipear la fecha. Pendiente aplicar fix en modal de invoices en Etapa 2.
 
 ## Estado actual
 - ✅ Bloque A: Auth + Login + Migration 002 (superadmin)

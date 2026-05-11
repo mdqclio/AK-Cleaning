@@ -72,11 +72,32 @@ La Mac de Leonardo no tiene credenciales push funcionando:
 - **PGRST201 con "more than one relationship found"** → FK ambigua, usar embed explícito.
 - **Error "violates row-level security"** → RLS policy bloquea. Verificar rol del usuario y policies de la tabla.
 
+## Conflicto git pull con archivos subidos por web
+
+Si Leonardo sube un archivo binario (imagen, PDF) desde GitHub web, y a la vez hay un commit de Claude Code sin pull previo, el `git pull` en la Mac puede conflictuar.
+
+**Fix**: antes de `git pull`, eliminar el archivo local si existe:
+```bash
+rm assets/ak-logo.png   # o el archivo que conflictúe
+git pull
+```
+
+Alternativa: desde Codespaces hacer `git pull --rebase` antes de cada push (ya incorporado como práctica estándar).
+
 ## Supabase — ejecutar SQL
 
 Leonardo va a Supabase Dashboard → SQL Editor → New query → pegar → Run.
 
 ⚠️ Bug conocido: al pegar SQL con comentarios al inicio, a veces se pierde el `--` de la primera línea. Verificar que la primera línea visible empiece con `--` antes de Run.
+
+## Supabase — verificar funciones con SECURITY DEFINER
+
+Las funciones con `SECURITY DEFINER` no siempre aparecen en `pg_proc` con queries estándar. Para verificar si una función existe y ver su definición:
+```sql
+SELECT pg_get_functiondef(oid)
+FROM pg_proc
+WHERE proname = 'nombre_funcion';
+```
 
 ## Procedimiento de recuperación de chat colgado
 
