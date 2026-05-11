@@ -229,31 +229,79 @@
 - `facturas_outbox` (V2)
 - `notificaciones` (V2)
 
-## RLS Policies confirmadas
+## Funciones SQL — verificadas en Supabase (11 May 2026)
 
-Todas las tablas tienen policy `_admin_all` que permite todo a roles `superadmin`, `owner`, `admin` vía función helper `tiene_acceso_admin()`.
+### Helpers de RLS (llamar en policies y código server-side)
 
-Funciones helper:
-```sql
-CREATE OR REPLACE FUNCTION tiene_acceso_admin() RETURNS bool AS $$
-  SELECT rol IN ('superadmin','owner','admin')
-  FROM usuarios WHERE auth_id = auth.uid()
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+| Función | Retorna | Descripción |
+|---|---|---|
+| `get_user_rol()` | `text` | `SELECT rol FROM usuarios WHERE auth_id = auth.uid() AND activo = TRUE` |
+| `get_usuario_id()` | `uuid` | `SELECT id FROM usuarios WHERE auth_id = auth.uid() AND activo = TRUE` |
+| `tiene_acceso_admin()` | `boolean` | `get_user_rol() IN ('superadmin','owner','admin')` |
+| `es_superadmin()` | `boolean` | `rol = 'superadmin' AND activo = true` |
+| `es_asignado_os(p_os_id uuid)` | `boolean` | `get_usuario_id()` está en `os_asignados` vía empleadas o proveedores |
 
-CREATE OR REPLACE FUNCTION es_superadmin() RETURNS bool AS $$
-  SELECT rol = 'superadmin'
-  FROM usuarios WHERE auth_id = auth.uid()
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-```
+> **Nota**: `tiene_acceso_admin()` delega en `get_user_rol()` (no hace la query directo). `get_usuario_id()` es la forma correcta de obtener el UUID interno del usuario en triggers/policies — usar en vez de `auth.uid()` cuando se necesita el ID de la tabla `usuarios`.
+
+### Funciones de negocio
+
+| Función | Retorna | Descripción |
+|---|---|---|
+| `siguiente_numero_factura()` | `integer` | FOR UPDATE atómico sobre `factura_counter.proximo_numero`. Counter actual: **1001**. |
+| `devolver_numero_factura(p_numero integer)` | `boolean` | Rollback seguro: decrementa solo si `proximo_numero = p_numero + 1`. Devuelve `true` si decrementó, `false` si hubo concurrencia (acepta el hueco). |
+| `siguiente_numero_nota_credito()` | `integer` | Idem para notas de crédito. |
+
+### Triggers confirmados
+
+| Trigger | Tabla | Función | Cuándo |
+|---|---|---|---|
+| `trg_audit_facturas` | `facturas` | `fn_audit_log()` | AFTER INSERT/UPDATE/DELETE |
+| (otros trg_audit_*) | varias | `fn_audit_log()` | AFTER INSERT/UPDATE/DELETE |
+| `trg_proteger_factura_emitida` | `facturas` | `fn_proteger_factura_emitida()` | BEFORE UPDATE |
+| `trg_incrementar_version` | `facturas` | `fn_incrementar_version()` | BEFORE UPDATE |
+| `trg_actualizado_en` | `facturas` (y otras) | `fn_actualizado_en()` | BEFORE UPDATE |
+| `trg_handle_new_user` | `auth.users` | `fn_handle_new_user()` | AFTER INSERT |
+| `trg_proteger_superadmin` | `usuarios` | `fn_proteger_superadmin()` | BEFORE UPDATE |
+
+### Detalle de `fn_proteger_factura_emitida()`
+
+Bloquea si `OLD.estado IN ('enviada', 'pagada')` y se intenta cambiar alguno de:
+- `numero`, `cliente_id`, `subtotal`, `total_due`, `fecha`
+
+Error: `'Cannot modify critical fields on a sent/paid invoice. Use a credit note instead.'`
+
+**Campos que SÍ se pueden editar en facturas enviadas/pagadas:**
+`estado`, `notas`, `enviada_en`, `enviada_a`, `pdf_url`, `tax_total`, `descuento_total`, `periodo_servicio`, `descripcion_general`
+
+### `fn_audit_log()`
+
+Registra en `audit_log`:
+- INSERT → `cambios = to_jsonb(NEW)`
+- UPDATE → `cambios = jsonb_build_object('old', to_jsonb(OLD), 'new', to_jsonb(NEW))`
+- DELETE → `cambios = to_jsonb(OLD)`
+- `usuario_id` via `get_usuario_id()` (puede ser NULL si no hay sesión activa)
+
+### Otros triggers
+
+- `fn_incrementar_version()` — `NEW.version = OLD.version + 1` en cada UPDATE de `facturas`
+- `fn_actualizado_en()` — `NEW.actualizado_en = now()` en cada UPDATE
+- `fn_handle_new_user()` — crea fila en `usuarios` al signup en `auth.users` (**NO** `handle_new_user`)
+- `fn_proteger_superadmin()` — anti-escalation en `usuarios`
+- `fn_proteger_reporte_inmutable()` — bloquea edición de reportes ya creados
+
+## RLS Policies
+
+Todas las tablas tienen policy `_admin_all` para roles `superadmin`, `owner`, `admin` vía `tiene_acceso_admin()`.
 
 **RLS sensible — `usuarios`**:
-- Superadmin: ve y gestiona TODOS (incluso otros superadmins)
+- Superadmin: ve y gestiona TODOS
 - Owner: ve y gestiona EXCEPTO superadmins (invisibles para Andrea)
-- Trigger anti-escalation bloquea que owner se auto-promueva
+- Trigger `fn_proteger_superadmin()` bloquea auto-escalación
 
-**RLS para empleadas/proveedores en sus PWAs**: NO IMPLEMENTADO TODAVÍA. Cuando se construyan los Bloques L y M hay que revisar policies B2+B3+B4 del review Opus (críticas).
+**RLS para empleadas/proveedores (PWAs)**: NO IMPLEMENTADO. Cuando se construyan Bloques L y M revisar policies B2+B3+B4 del review Opus.
 
-## SQL completo no disponible en el repo
-- `001_initial_schema.sql` (~600 líneas) — solo aplicado en Supabase, no exportado
-- `002_add_superadmin.sql` — solo aplicado
-- **Acción pendiente**: pedirle a Leonardo que exporte el schema desde Supabase Dashboard, o regenerarlo con `pg_dump --schema-only` para tener historial completo en repo
+**Policy útil para OS asignadas (futuro Bloque L)**:
+```sql
+-- empleada solo ve sus OS
+USING (es_asignado_os(id))
+```
