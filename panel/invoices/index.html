@@ -1,41 +1,643 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Invoicing — AK Cleaning</title>
-  <link rel="stylesheet" href="/css/base.css" />
-  <link rel="stylesheet" href="/css/components.css" />
-  <link rel="stylesheet" href="/panel/css/panel.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Invoices · AK Cleaning &amp; Management</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/panel/css/panel.css">
+  <link rel="stylesheet" href="/panel/clients/css/clients.css">
+  <link rel="stylesheet" href="/panel/orders/css/orders.css">
+  <link rel="stylesheet" href="./css/invoices.css">
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="header" id="header"></header>
 
-<div id="panel-shell"></div>
+      <div class="content">
+        <div class="clients-page" x-data="invoicesPage()" x-init="init()" x-cloak>
 
-<div id="page-content">
-  <div class="content-inner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:var(--space-md)">
-    <div style="width:64px;height:64px;border-radius:16px;background:var(--color-surface);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;margin:0 auto">
-      <i data-lucide="file-text" style="width:32px;height:32px;color:var(--color-accent)"></i>
-    </div>
-    <h2 style="color:var(--color-primary);font-size:var(--text-xl)">Invoicing</h2>
-    <p style="color:var(--color-text-muted);max-width:400px;line-height:1.6">
-      Invoice management is under development.<br>
-      This module will generate, track, and send client invoices directly from service orders.
-    </p>
-    <span class="badge badge-status-inactive" style="font-size:var(--text-sm);padding:6px 16px">Coming Soon</span>
+          <!-- Tabs por estado -->
+          <div class="view-tabs">
+            <button class="view-tab" :class="vista === 'drafts'    ? 'active' : ''" @click="cambiarVista('drafts')">Drafts</button>
+            <button class="view-tab" :class="vista === 'generated' ? 'active' : ''" @click="cambiarVista('generated')">Generated</button>
+            <button class="view-tab" :class="vista === 'sent'      ? 'active' : ''" @click="cambiarVista('sent')">Sent</button>
+            <button class="view-tab" :class="vista === 'paid'      ? 'active' : ''" @click="cambiarVista('paid')">Paid</button>
+            <button class="view-tab" :class="vista === 'all'       ? 'active' : ''" @click="cambiarVista('all')">All</button>
+          </div>
+
+          <!-- Toolbar -->
+          <div class="clients-toolbar">
+            <div class="clients-search">
+              <i data-lucide="search"></i>
+              <input type="text" placeholder="Search by client name, invoice number or notes..."
+                     x-model="busqueda" @input.debounce.300ms="pagina = 1; recargar()">
+            </div>
+            <select x-model="filtroCliente" @change="pagina = 1; recargar()">
+              <option value="all">All clients</option>
+              <template x-for="c in clientesDropdown" :key="c.id">
+                <option :value="c.id" x-text="formatNombreCliente(c)"></option>
+              </template>
+            </select>
+            <button class="btn btn-primary btn-new" @click="abrirNuevo()">
+              <i data-lucide="plus"></i>
+              New Invoice
+            </button>
+          </div>
+
+          <!-- Tabla -->
+          <div class="clients-table-wrapper">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Client</th>
+                  <th>Description</th>
+                  <th style="text-align:right">Total</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+
+                <!-- Skeleton loading -->
+                <template x-if="cargando">
+                  <template x-for="i in 5">
+                    <tr class="skeleton-row">
+                      <td><span class="skeleton-bar" style="width: 40px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 90px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 150px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 200px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 70px"></span></td>
+                      <td><span class="skeleton-bar" style="width: 70px"></span></td>
+                      <td></td>
+                    </tr>
+                  </template>
+                </template>
+
+                <!-- Empty state -->
+                <template x-if="!cargando && facturas.length === 0">
+                  <tr>
+                    <td colspan="7">
+                      <div class="empty-state">
+                        <i data-lucide="file-text"></i>
+                        <h3>No invoices yet</h3>
+                        <p>Get started by creating your first invoice.</p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <!-- Filas -->
+                <template x-for="f in facturas" :key="f.id">
+                  <tr @click="abrirEditar(f.id)">
+                    <td>
+                      <template x-if="f.numero">
+                        <span class="inv-number" x-text="`#${f.numero}`"></span>
+                      </template>
+                      <template x-if="!f.numero">
+                        <span class="inv-number-draft">—</span>
+                      </template>
+                    </td>
+                    <td x-text="formatFecha(f.fecha)"></td>
+                    <td>
+                      <span x-text="formatNombreCliente(f.clientes)"></span>
+                    </td>
+                    <td>
+                      <span x-text="truncar(f.descripcion_general)"
+                            style="color: var(--color-text-muted); font-size: var(--text-sm)"></span>
+                    </td>
+                    <td style="text-align:right">
+                      <strong x-text="formatMoneda(f.total_due)"></strong>
+                    </td>
+                    <td>
+                      <span class="badge-estado"
+                            :class="`badge-status-${f.estado}`"
+                            x-text="estadoLabel(f.estado)"></span>
+                    </td>
+                    <td>
+                      <div class="row-actions" @click.stop>
+                        <button @click="abrirEditar(f.id)" title="Edit">
+                          <i data-lucide="pencil"></i>
+                        </button>
+                        <template x-if="f.estado === 'borrador'">
+                          <button @click="confirmarEliminar(f)" title="Delete draft"
+                                  style="color: var(--color-danger)">
+                            <i data-lucide="trash-2"></i>
+                          </button>
+                        </template>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Paginación -->
+          <div class="pagination" x-show="totalPaginas > 1">
+            <div>Showing <strong x-text="rangoMostrado()"></strong> of <strong x-text="total"></strong></div>
+            <div class="pagination-controls">
+              <button @click="irPagina(pagina - 1)" :disabled="pagina === 1">
+                <i data-lucide="chevron-left" style="width:14px;height:14px"></i>
+              </button>
+              <template x-for="n in numerosPagina()">
+                <button @click="irPagina(n)" :class="n === pagina ? 'active' : ''" x-text="n"></button>
+              </template>
+              <button @click="irPagina(pagina + 1)" :disabled="pagina === totalPaginas">
+                <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ─── Modal ─────────────────────────────── -->
+          <div class="modal-overlay" x-show="modalAbierto" @click.self="cerrarModal()" x-cloak>
+            <div class="modal-form" style="max-width: 880px">
+              <div class="modal-header">
+                <h2 x-text="formData.id ? 'Edit Invoice' : 'New Invoice'"></h2>
+                <button class="modal-close" @click="cerrarModal()">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+
+                <!-- Basic Information -->
+                <div class="form-section">
+                  <h3><i data-lucide="info"></i> Basic Information</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Client <span class="required">*</span></label>
+                      <select x-model="formData.cliente_id">
+                        <option value="">— Select client —</option>
+                        <template x-for="c in clientesDropdown" :key="c.id">
+                          <option :value="c.id" x-text="formatNombreCliente(c)"></option>
+                        </template>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Invoice Date <span class="required">*</span></label>
+                      <input type="date" x-model="formData.fecha">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- FOR section -->
+                <div class="form-section">
+                  <h3><i data-lucide="file-text"></i> FOR (visible on invoice)</h3>
+                  <div class="field">
+                    <label class="field-label">Property / Unit</label>
+                    <input type="text" x-model="formData.for_property"
+                           placeholder="e.g. Alfonsina – Unit 4B">
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Service Period</label>
+                    <input type="text" x-model="formData.for_service_period"
+                           placeholder="e.g. September 2025">
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Description</label>
+                    <textarea x-model="formData.for_description" rows="2"
+                              placeholder="Additional details visible on the invoice"></textarea>
+                  </div>
+                </div>
+
+                <!-- Line Items -->
+                <div class="form-section">
+                  <h3><i data-lucide="list"></i> Line Items</h3>
+
+                  <div class="invoice-lines-list">
+                    <!-- Header de columnas -->
+                    <div class="invoice-line-row"
+                         style="border: none; background: transparent; padding-top: 0; padding-bottom: 0">
+                      <div class="section-for-label">Date</div>
+                      <div class="section-for-label">Description</div>
+                      <div class="section-for-label">Qty</div>
+                      <div class="section-for-label">Unit Price</div>
+                      <div class="section-for-label" style="text-align:right">Total</div>
+                      <div></div>
+                    </div>
+
+                    <template x-for="(linea, idx) in lineas" :key="idx">
+                      <div class="invoice-line-row">
+                        <div class="field">
+                          <input type="date" x-model="linea.fecha">
+                        </div>
+                        <div class="field">
+                          <input type="text" x-model="linea.descripcion"
+                                 placeholder="Service description" required>
+                        </div>
+                        <div class="field">
+                          <input type="number" x-model="linea.qty"
+                                 step="0.5" min="0" placeholder="1">
+                        </div>
+                        <div class="field">
+                          <input type="number" x-model="linea.precio_unitario"
+                                 step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="total-cell" x-text="formatMoneda(totalLinea(linea))"></div>
+                        <button class="delete-btn" @click="eliminarLinea(idx)" title="Remove line">
+                          <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+
+                  <button class="btn-add-inline" @click="agregarLinea()" style="margin-top: 8px">
+                    <i data-lucide="plus"></i> Add Line
+                  </button>
+
+                  <!-- Total Due -->
+                  <div class="invoice-total-due" x-show="lineas.length > 0">
+                    <span class="invoice-total-due-label">Total Due</span>
+                    <span class="invoice-total-due-amount" x-text="formatMoneda(totalDue)"></span>
+                  </div>
+                </div>
+
+                <!-- Internal Notes -->
+                <div class="form-section">
+                  <h3><i data-lucide="lock"></i> Internal Notes</h3>
+                  <div class="field">
+                    <textarea x-model="formData.notas" rows="2"
+                              placeholder="Internal notes — not shown on the invoice PDF"></textarea>
+                    <span class="field-help">Only visible to admin team.</span>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="modal-footer">
+                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando">Cancel</button>
+                <button class="btn btn-primary" @click="guardar()" :disabled="guardando">
+                  <span x-text="guardando ? 'Saving...' : 'Save Draft'"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toasts -->
+          <div class="toast-container">
+            <template x-for="t in toasts" :key="t.id">
+              <div class="toast" :class="`toast-${t.tipo}`" x-text="t.mensaje"></div>
+            </template>
+          </div>
+
+        </div>
+      </div>
+    </main>
   </div>
-</div>
 
-<script type="module">
-  import { iniciarPanel } from '/panel/js/panel-shell.js';
-  (async () => {
-    await iniciarPanel({
-      rolesPermitidos: ['superadmin', 'owner', 'admin'],
-      itemActivo: 'invoices',
-      tituloHeader: 'Invoicing',
-    });
-    if (window.lucide) window.lucide.createIcons();
-  })();
-</script>
+  <script type="module">
+    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import {
+      listarFacturas, obtenerFactura, crearFactura, actualizarFactura,
+      eliminarFactura, listarClientesActivos, traducirError
+    } from './js/invoices-api.js';
+
+    (async () => {
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin', 'owner', 'admin'],
+        itemActivo: 'invoices',
+        tituloHeader: 'Invoices'
+      });
+      if (!usuario) return;
+
+      window.invoicesPage = function () {
+        return {
+          // ─── Estado ──────────────────────────────────
+          facturas: [],
+          total: 0,
+          cargando: true,
+          vista: 'drafts',
+          busqueda: '',
+          filtroCliente: 'all',
+          pagina: 1,
+          porPagina: 20,
+
+          clientesDropdown: [],
+
+          modalAbierto: false,
+          guardando: false,
+          formData: {},
+          lineas: [],
+
+          toasts: [],
+
+          // ─── Helpers de inicialización ───────────────
+          formDataVacio() {
+            return {
+              id: null,
+              numero: null,
+              cliente_id: '',
+              fecha: new Date().toISOString().split('T')[0],
+              for_property: '',
+              for_service_period: '',
+              for_description: '',
+              notas: '',
+              estado: 'borrador',
+              version: 1
+            };
+          },
+
+          lineaVacia() {
+            return { fecha: '', descripcion: '', qty: 1, precio_unitario: 0 };
+          },
+
+          // ─── Ciclo de vida ───────────────────────────
+          async init() {
+            this.formData = this.formDataVacio();
+            await this.cargarClientes();
+            await this.recargar();
+          },
+
+          async cargarClientes() {
+            const { data } = await listarClientesActivos();
+            this.clientesDropdown = data;
+          },
+
+          async recargar() {
+            const mapaEstado = {
+              drafts: 'borrador', generated: 'generada',
+              sent: 'enviada', paid: 'pagada', all: 'all'
+            };
+            const estado = mapaEstado[this.vista] || 'all';
+
+            this.cargando = true;
+            const { data, count, error } = await listarFacturas({
+              busqueda: this.busqueda,
+              estado,
+              cliente_id: this.filtroCliente,
+              pagina: this.pagina,
+              porPagina: this.porPagina
+            });
+
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.cargando = false;
+              return;
+            }
+
+            this.facturas = data;
+            this.total = count;
+            this.cargando = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cambiarVista(v) {
+            this.vista = v;
+            this.pagina = 1;
+            this.recargar();
+          },
+
+          // ─── Getters de cálculo ──────────────────────
+          totalLinea(linea) {
+            return (parseFloat(linea.qty) || 0) * (parseFloat(linea.precio_unitario) || 0);
+          },
+
+          get subtotal() {
+            return this.lineas.reduce((acc, l) => acc + this.totalLinea(l), 0);
+          },
+
+          get totalDue() {
+            return this.subtotal;
+          },
+
+          // ─── Formato ─────────────────────────────────
+          formatNombreCliente(c) {
+            if (!c) return '—';
+            const base = `${c.nombre || ''} ${c.apellido || ''}`.trim();
+            return c.razon_social ? `${c.razon_social} (${base})` : base;
+          },
+
+          formatMoneda(n) {
+            if (n === null || n === undefined || isNaN(n)) return '—';
+            return `$${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+          },
+
+          formatFecha(iso) {
+            if (!iso) return '—';
+            // fecha es DATE (YYYY-MM-DD); T12:00:00 evita timezone shift al formatear
+            const d = new Date(iso + 'T12:00:00');
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          },
+
+          truncar(s, n = 50) {
+            if (!s) return '—';
+            return s.length > n ? s.substring(0, n) + '…' : s;
+          },
+
+          estadoLabel(e) {
+            const m = {
+              borrador: 'Draft', generada: 'Generated',
+              enviada: 'Sent', pagada: 'Paid', anulada: 'Anulada'
+            };
+            return m[e] || e;
+          },
+
+          // ─── Modal ───────────────────────────────────
+          abrirNuevo() {
+            this.formData = this.formDataVacio();
+            this.lineas = [this.lineaVacia()];
+            this.modalAbierto = true;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async abrirEditar(id) {
+            this.modalAbierto = true;
+            const { factura, error } = await obtenerFactura(id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              this.modalAbierto = false;
+              return;
+            }
+
+            // Split descripcion_general en los 3 campos FOR
+            const partes = (factura.descripcion_general || '').split('\n');
+            this.formData = {
+              id:                 factura.id,
+              numero:             factura.numero,
+              cliente_id:         factura.cliente_id,
+              fecha:              factura.fecha,
+              for_property:       partes[0] || '',
+              for_service_period: partes[1] || '',
+              for_description:    partes.slice(2).join('\n') || '',
+              notas:              factura.notas || '',
+              estado:             factura.estado,
+              version:            factura.version
+            };
+
+            this.lineas = (factura.factura_lineas || []).map(l => ({
+              id:              l.id,
+              fecha:           l.fecha || '',
+              descripcion:     l.descripcion || '',
+              qty:             l.qty,
+              precio_unitario: l.precio_unitario
+            }));
+
+            if (this.lineas.length === 0) this.lineas = [this.lineaVacia()];
+
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cerrarModal() {
+            this.modalAbierto = false;
+          },
+
+          // ─── Líneas ──────────────────────────────────
+          agregarLinea() {
+            this.lineas.push(this.lineaVacia());
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          eliminarLinea(idx) {
+            this.lineas.splice(idx, 1);
+            if (this.lineas.length === 0) this.lineas = [this.lineaVacia()];
+          },
+
+          // ─── Guardar ─────────────────────────────────
+          async guardar() {
+            const f = this.formData;
+
+            if (!f.cliente_id) {
+              this.mostrarToast('error', 'Please select a client.');
+              return;
+            }
+            if (!f.fecha) {
+              this.mostrarToast('error', 'Invoice date is required.');
+              return;
+            }
+            const lineasValidas = this.lineas.filter(l => l.descripcion?.trim());
+            if (lineasValidas.length === 0) {
+              this.mostrarToast('error', 'Add at least one line with a description.');
+              return;
+            }
+
+            this.guardando = true;
+
+            // Armar descripcion_general desde los 3 campos FOR
+            const descripcion_general = [
+              f.for_property,
+              f.for_service_period,
+              f.for_description
+            ].filter(x => x?.trim()).join('\n') || null;
+
+            // Calcular totales (sin tax ni discount en Etapa 1)
+            const subtotal = lineasValidas.reduce((acc, l) =>
+              acc + (parseFloat(l.qty) || 0) * (parseFloat(l.precio_unitario) || 0), 0
+            );
+
+            const datosFactura = {
+              cliente_id:       f.cliente_id,
+              fecha:            f.fecha,
+              periodo_servicio: f.for_service_period?.trim() || null,
+              descripcion_general,
+              subtotal,
+              descuento_total:  0,
+              tax_total:        0,
+              total_due:        subtotal,
+              notas:            f.notas?.trim() || null
+              // estado: manejado por crearFactura (siempre 'borrador')
+              // version, actualizado_en, idempotency_key: manejados por triggers de DB
+            };
+
+            const lineasParaGuardar = lineasValidas.map((l, idx) => ({
+              fecha:           l.fecha || null,
+              descripcion:     l.descripcion.trim(),
+              qty:             parseFloat(l.qty) || 1,
+              precio_unitario: parseFloat(l.precio_unitario) || 0,
+              descuento:       0,
+              taxable:         false,
+              tax_pct:         0,
+              tax_monto:       0,
+              total:           (parseFloat(l.qty) || 0) * (parseFloat(l.precio_unitario) || 0),
+              orden:           idx + 1
+              // os_id, os_servicio_id: omitir (NULL — líneas manuales)
+            }));
+
+            let error;
+            if (f.id) {
+              ({ error } = await actualizarFactura(f.id, datosFactura, lineasParaGuardar, f.version));
+            } else {
+              ({ error } = await crearFactura(datosFactura, lineasParaGuardar));
+            }
+
+            this.guardando = false;
+
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+
+            this.modalAbierto = false;
+            this.mostrarToast('success', f.id ? 'Invoice updated' : 'Draft created');
+            await this.recargar();
+          },
+
+          // ─── Eliminar ────────────────────────────────
+          async confirmarEliminar(factura) {
+            if (factura.estado !== 'borrador') {
+              this.mostrarToast('error', 'Only drafts can be deleted.');
+              return;
+            }
+            if (!confirm('Delete this draft? This cannot be undone.')) return;
+            const { error } = await eliminarFactura(factura.id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.mostrarToast('success', 'Draft deleted');
+            await this.recargar();
+          },
+
+          // ─── Paginación ──────────────────────────────
+          get totalPaginas() {
+            return Math.max(1, Math.ceil(this.total / this.porPagina));
+          },
+
+          rangoMostrado() {
+            if (this.total === 0) return '0';
+            const desde = (this.pagina - 1) * this.porPagina + 1;
+            const hasta = Math.min(this.pagina * this.porPagina, this.total);
+            return `${desde}-${hasta}`;
+          },
+
+          numerosPagina() {
+            const t = this.totalPaginas;
+            const p = this.pagina;
+            const arr = [];
+            const inicio = Math.max(1, p - 2);
+            const fin = Math.min(t, inicio + 4);
+            for (let i = inicio; i <= fin; i++) arr.push(i);
+            return arr;
+          },
+
+          irPagina(n) {
+            if (n < 1 || n > this.totalPaginas) return;
+            this.pagina = n;
+            this.recargar();
+          },
+
+          // ─── Toasts ──────────────────────────────────
+          mostrarToast(tipo, mensaje) {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, tipo, mensaje });
+            setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 3500);
+          }
+        };
+      };
+
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
 </body>
 </html>

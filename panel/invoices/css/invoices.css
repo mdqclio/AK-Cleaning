@@ -1,0 +1,153 @@
+/* panel/invoices/css/invoices.css */
+/* Estilos específicos del módulo de Invoices. */
+/* Reutiliza clients.css, panel.css, orders.css — incluidos en el <head>. */
+
+/* ─── Fila de línea de invoice ─── */
+.invoice-line-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 80px 120px 120px 36px;
+  gap: 8px;
+  align-items: end;
+  padding: 12px;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+.invoice-line-row .field {
+  margin: 0;
+}
+
+.invoice-line-row .field-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-soft);
+  margin-bottom: 4px;
+}
+
+.invoice-line-row input {
+  padding: 7px 9px;
+  font-size: var(--text-sm);
+  width: 100%;
+}
+
+.invoice-line-row .total-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  padding: 8px 4px;
+  color: var(--color-text);
+}
+
+.invoice-line-row .delete-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast), background var(--transition-fast);
+  align-self: end;
+}
+
+.invoice-line-row .delete-btn:hover {
+  color: var(--color-danger);
+  background: var(--color-surface);
+}
+
+.invoice-lines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ─── Total Due block ─── */
+.invoice-total-due {
+  margin-top: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-primary);
+  color: white;
+  border-radius: var(--radius);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.invoice-total-due-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.invoice-total-due-amount {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+}
+
+/* ─── Badges de estado ─── */
+.badge-status-borrador {
+  background: #f2f1ee;
+  color: #6b665e;
+}
+
+.badge-status-generada {
+  background: #e0ecf5;
+  color: #1a6ba0;
+}
+
+.badge-status-enviada {
+  background: #fdf3e0;
+  color: #c9a84c;
+}
+
+.badge-status-pagada {
+  background: #e0f0e6;
+  color: #2d7a4f;
+}
+
+.badge-status-anulada {
+  background: #fae5e4;
+  color: #b03a35;
+}
+
+/* ─── Número de factura en tabla ─── */
+.inv-number {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.inv-number-draft {
+  color: var(--color-text-soft);
+  font-style: italic;
+}
+
+/* ─── FOR section label ─── */
+.section-for-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+/* ─── Mobile ─── */
+@media (max-width: 700px) {
+  .invoice-line-row {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-line-row .total-cell {
+    justify-content: flex-start;
+  }
+}
