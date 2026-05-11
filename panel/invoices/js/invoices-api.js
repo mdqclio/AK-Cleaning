@@ -156,6 +156,106 @@ export async function eliminarFactura(id) {
   return { error };
 }
 
+// ─── GENERAR FINAL (Etapa 2) ─────────────────────────
+
+/**
+ * Trae un cliente con sus campos bill_to para el snapshot.
+ */
+export async function obtenerClienteParaFactura(cliente_id) {
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('id, nombre, apellido, razon_social, email, bill_to_name, bill_to_email, bill_to_address_1, bill_to_address_2, bill_to_city, bill_to_state, bill_to_zip')
+    .eq('id', cliente_id)
+    .single();
+  return { cliente: data, error };
+}
+
+/**
+ * Asigna número correlativo, copia snapshot bill_to y cambia estado a 'generada'.
+ * Hace version check ANTES de consumir un número.
+ * Si el UPDATE falla, devuelve el número con devolver_numero_factura().
+ * @returns {{ numero, error }}
+ */
+export async function generarNumeroYSnapshot(id, version, snapshotData) {
+  const { data: actual } = await supabase
+    .from('facturas').select('version').eq('id', id).single();
+
+  if (actual?.version !== version) {
+    return { error: { message: 'This invoice was modified by someone else. Please reload and try again.' }, numero: null };
+  }
+
+  const { data: nro, error: errNro } = await supabase.rpc('siguiente_numero_factura');
+  if (errNro || nro == null) {
+    return { error: errNro || { message: 'Could not assign invoice number. Please try again.' }, numero: null };
+  }
+
+  const { error: errUpdate } = await supabase
+    .from('facturas')
+    .update({ numero: nro, estado: 'generada', ...snapshotData })
+    .eq('id', id);
+
+  if (errUpdate) {
+    await supabase.rpc('devolver_numero_factura', { p_numero: nro });
+    return { error: errUpdate, numero: null };
+  }
+
+  return { numero: nro, error: null };
+}
+
+/**
+ * Sube un PDF blob a Storage: facturas/{año}/{numero}.pdf
+ * @returns {{ publicUrl, error }}
+ */
+export async function subirPDF(numero, año, blob) {
+  const path = `${año}/${numero}.pdf`;
+  const { error: errUpload } = await supabase.storage
+    .from('facturas')
+    .upload(path, blob, { contentType: 'application/pdf', upsert: true });
+
+  if (errUpload) return { publicUrl: null, error: errUpload };
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('facturas')
+    .getPublicUrl(path);
+
+  return { publicUrl, error: null };
+}
+
+/** Actualiza pdf_url en la factura después del upload. */
+export async function actualizarPdfUrl(id, pdf_url) {
+  const { error } = await supabase.from('facturas').update({ pdf_url }).eq('id', id);
+  return { error };
+}
+
+/** Rollback: devuelve el número al counter si el proceso falló post-numeración. */
+export async function devolverNumero(numero) {
+  await supabase.rpc('devolver_numero_factura', { p_numero: numero });
+}
+
+/** Rollback: revierte estado a 'borrador' y borra el numero asignado. */
+export async function revertirABorrador(id) {
+  await supabase.from('facturas').update({ estado: 'borrador', numero: null }).eq('id', id);
+}
+
+/**
+ * Cambia estado a 'anulada'. Solo permite borrador o generada.
+ */
+export async function anularFactura(id, version) {
+  const { data: actual } = await supabase
+    .from('facturas').select('version, estado').eq('id', id).single();
+
+  if (!actual) return { error: { message: 'Invoice not found.' } };
+  if (actual.version !== version) {
+    return { error: { message: 'This invoice was modified by someone else. Please reload and try again.' } };
+  }
+  if (!['borrador', 'generada'].includes(actual.estado)) {
+    return { error: { message: 'Only draft or generated invoices can be voided.' } };
+  }
+
+  const { error } = await supabase.from('facturas').update({ estado: 'anulada' }).eq('id', id);
+  return { error };
+}
+
 // ─── DROPDOWNS ───────────────────────────────────────
 
 export async function listarClientesActivos() {
@@ -177,6 +277,8 @@ export function traducirError(error) {
     return 'This invoice has been sent. To make corrections, issue a credit note.';
   }
   if (msg.includes('Only draft invoices can be deleted')) return msg;
+  if (msg.includes('Only draft or generated invoices can be voided')) return msg;
+  if (msg.includes('Could not assign invoice number')) return msg;
   if (msg.includes('violates not-null'))   return 'Please complete all required fields.';
   if (msg.includes('foreign key'))         return 'Referenced record no longer exists. Please reload.';
   if (msg.includes('permission'))          return 'You don\'t have permission for this action.';

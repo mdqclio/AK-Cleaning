@@ -12,8 +12,13 @@
   <link rel="stylesheet" href="./css/invoices.css">
   <script src="/config.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
+  <!-- Área oculta para renderizar el HTML del PDF antes de convertir con html2pdf -->
+  <div id="pdf-render-area"
+       style="position:fixed; left:-9999px; top:0; width:210mm; pointer-events:none; z-index:-1;"></div>
+
   <div class="panel-layout">
     <aside class="sidebar" id="sidebar"></aside>
     <main class="main">
@@ -126,6 +131,14 @@
                         <button @click="abrirEditar(f.id)" title="Edit">
                           <i data-lucide="pencil"></i>
                         </button>
+                        <template x-if="f.pdf_url">
+                          <a :href="f.pdf_url" target="_blank" @click.stop title="Download PDF"
+                             style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; color:var(--color-text-muted); border-radius:var(--radius-sm); text-decoration:none;"
+                             onmouseover="this.style.color='var(--color-accent)'; this.style.background='var(--color-bg)'"
+                             onmouseout="this.style.color='var(--color-text-muted)'; this.style.background='transparent'">
+                            <i data-lucide="download" style="width:15px;height:15px"></i>
+                          </a>
+                        </template>
                         <template x-if="f.estado === 'borrador'">
                           <button @click="confirmarEliminar(f)" title="Delete draft"
                                   style="color: var(--color-danger)">
@@ -184,7 +197,8 @@
                     </div>
                     <div class="field">
                       <label class="field-label">Invoice Date <span class="required">*</span></label>
-                      <input type="date" x-model="formData.fecha">
+                      <input type="date" :value="formData.fecha"
+                             @change="formData.fecha = $event.target.value">
                     </div>
                   </div>
                 </div>
@@ -228,7 +242,8 @@
                     <template x-for="(linea, idx) in lineas" :key="idx">
                       <div class="invoice-line-row">
                         <div class="field">
-                          <input type="date" x-model="linea.fecha">
+                          <input type="date" :value="linea.fecha"
+                                 @change="linea.fecha = $event.target.value">
                         </div>
                         <div class="field">
                           <input type="text" x-model="linea.descripcion"
@@ -274,11 +289,61 @@
               </div>
 
               <div class="modal-footer">
-                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando">Cancel</button>
-                <button class="btn btn-primary" @click="guardar()" :disabled="guardando">
+                <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando || generando">Cancel</button>
+
+                <!-- Ver PDF (facturas con pdf_url ya generado) -->
+                <template x-if="formData.pdf_url">
+                  <a class="btn btn-ghost" :href="formData.pdf_url" target="_blank"
+                     style="text-decoration:none; display:inline-flex; align-items:center; gap:6px">
+                    <i data-lucide="file-text"></i> View PDF
+                  </a>
+                </template>
+
+                <!-- Void (solo generada) -->
+                <button class="btn-void" x-show="formData.id && formData.estado === 'generada'"
+                        @click="anular()" :disabled="generando" style="display:none">
+                  <i data-lucide="x-circle"></i>
+                  Void Invoice
+                </button>
+
+                <!-- Save Draft (solo borrador) -->
+                <button class="btn btn-ghost" x-show="formData.estado === 'borrador'"
+                        @click="guardar()" :disabled="guardando || generando" style="display:none">
                   <span x-text="guardando ? 'Saving...' : 'Save Draft'"></span>
                 </button>
+
+                <!-- Generate Final (solo borrador guardado) -->
+                <button class="btn btn-primary"
+                        x-show="formData.id && formData.estado === 'borrador'"
+                        @click="generarFinal()" :disabled="guardando || generando" style="display:none">
+                  <i data-lucide="zap"></i>
+                  <span x-text="generando ? 'Generating...' : 'Generate Final'"></span>
+                </button>
               </div>
+            </div>
+          </div>
+
+          <!-- ─── PDF Preview Modal ─────────────────────── -->
+          <div class="pdf-preview-overlay" x-show="previewAbierto" x-cloak>
+            <div class="pdf-preview-modal">
+              <div class="pdf-preview-header">
+                <span x-text="previewNumero ? `Invoice #${previewNumero}` : 'Invoice Preview'"></span>
+                <div style="display:flex; gap:8px; align-items:center; flex-shrink:0">
+                  <template x-if="previewUrl">
+                    <a class="btn btn-ghost" :href="previewUrl"
+                       :download="previewNumero ? `AK-Invoice-${previewNumero}.pdf` : 'invoice.pdf'"
+                       style="text-decoration:none; display:inline-flex; align-items:center; gap:6px">
+                      <i data-lucide="download"></i> Download
+                    </a>
+                  </template>
+                  <button class="btn btn-ghost" @click="cerrarPreview()">
+                    <i data-lucide="x"></i> Close
+                  </button>
+                </div>
+              </div>
+              <template x-if="previewAbierto && previewUrl">
+                <iframe :src="previewUrl" class="pdf-preview-iframe"></iframe>
+              </template>
             </div>
           </div>
 
@@ -298,7 +363,10 @@
     import { iniciarPanel } from '/panel/js/panel-shell.js';
     import {
       listarFacturas, obtenerFactura, crearFactura, actualizarFactura,
-      eliminarFactura, listarClientesActivos, traducirError
+      eliminarFactura, listarClientesActivos, traducirError,
+      obtenerClienteParaFactura, generarNumeroYSnapshot,
+      subirPDF, actualizarPdfUrl, devolverNumero, revertirABorrador,
+      anularFactura
     } from './js/invoices-api.js';
 
     (async () => {
@@ -325,8 +393,15 @@
 
           modalAbierto: false,
           guardando: false,
+          generando: false,
           formData: {},
           lineas: [],
+
+          previewAbierto: false,
+          previewUrl: null,
+          previewNumero: null,
+
+          logoBase64: null,
 
           toasts: [],
 
@@ -355,6 +430,8 @@
             this.formData = this.formDataVacio();
             await this.cargarClientes();
             await this.recargar();
+            // Precargar logo como base64 para PDF (async, no bloquea UI)
+            this.cargarLogoBase64('/assets/ak-logo.png').then(b64 => { this.logoBase64 = b64; });
           },
 
           async cargarClientes() {
@@ -622,6 +699,280 @@
             if (n < 1 || n > this.totalPaginas) return;
             this.pagina = n;
             this.recargar();
+          },
+
+          // ─── Generate Final ──────────────────────────
+          async generarFinal() {
+            if (!confirm('Once generated, the invoice number cannot be changed. Continue?')) return;
+
+            this.generando = true;
+            let nroAsignado = null;
+
+            try {
+              // 1. Obtener cliente con campos bill_to
+              const { cliente, error: errCliente } = await obtenerClienteParaFactura(this.formData.cliente_id);
+              if (errCliente) throw errCliente;
+
+              // 2. Armar snapshot bill_to
+              const snapshotData = {
+                bill_to_name_snapshot:      cliente.bill_to_name || `${cliente.nombre} ${cliente.apellido}`,
+                bill_to_email_snapshot:     cliente.bill_to_email || cliente.email || null,
+                bill_to_address_1_snapshot: cliente.bill_to_address_1 || null,
+                bill_to_address_2_snapshot: cliente.bill_to_address_2 || null,
+                bill_to_city_snapshot:      cliente.bill_to_city || null,
+                bill_to_state_snapshot:     cliente.bill_to_state || null,
+                bill_to_zip_snapshot:       cliente.bill_to_zip || null
+              };
+
+              // 3. Asignar número y actualizar DB (version check incluido)
+              const { numero, error: errGen } = await generarNumeroYSnapshot(
+                this.formData.id, this.formData.version, snapshotData
+              );
+              if (errGen) throw errGen;
+              nroAsignado = numero;
+
+              // 4. Traer factura fresca con lineas y snapshot ya guardado
+              const { factura: facturaFull, error: errFetch } = await obtenerFactura(this.formData.id);
+              if (errFetch) throw errFetch;
+
+              // 5. Renderizar HTML del PDF
+              const htmlPDF = this.renderizarHTMLPDF(facturaFull, numero);
+              const container = document.getElementById('pdf-render-area');
+              container.innerHTML = htmlPDF;
+
+              // 6. Generar blob con html2pdf
+              const blob = await html2pdf()
+                .set({
+                  margin: 0,
+                  filename: `AK-Invoice-${numero}.pdf`,
+                  image: { type: 'jpeg', quality: 0.92 },
+                  html2canvas: { scale: 2, useCORS: true, logging: false, allowTaint: true },
+                  jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                })
+                .from(container)
+                .outputPdf('blob');
+              container.innerHTML = '';
+
+              // 7. Upload a Storage
+              const año = new Date(facturaFull.fecha + 'T12:00:00').getFullYear();
+              const { publicUrl, error: errUpload } = await subirPDF(numero, año, blob);
+              if (errUpload) throw errUpload;
+
+              // 8. Guardar pdf_url en DB
+              const { error: errUrl } = await actualizarPdfUrl(this.formData.id, publicUrl);
+              if (errUrl) throw errUrl;
+
+              // 9. Abrir preview con blob URL
+              const blobUrl = URL.createObjectURL(blob);
+              this.previewUrl = blobUrl;
+              this.previewNumero = numero;
+              this.previewAbierto = true;
+              this.modalAbierto = false;
+
+              this.mostrarToast('success', `Invoice #${numero} generated successfully`);
+              await this.recargar();
+
+            } catch (err) {
+              document.getElementById('pdf-render-area').innerHTML = '';
+              // Rollback si ya se asignó número
+              if (nroAsignado !== null) {
+                await devolverNumero(nroAsignado);
+                await revertirABorrador(this.formData.id);
+              }
+              this.mostrarToast('error', traducirError(err));
+            } finally {
+              this.generando = false;
+            }
+          },
+
+          // ─── Anular ──────────────────────────────────
+          async anular() {
+            if (!confirm('Void this invoice? This cannot be undone.')) return;
+            this.generando = true;
+            const { error } = await anularFactura(this.formData.id, this.formData.version);
+            this.generando = false;
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.modalAbierto = false;
+            this.mostrarToast('success', 'Invoice voided');
+            await this.recargar();
+          },
+
+          // ─── Preview ─────────────────────────────────
+          cerrarPreview() {
+            if (this.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(this.previewUrl);
+            this.previewUrl = null;
+            this.previewNumero = null;
+            this.previewAbierto = false;
+          },
+
+          // ─── Logo helper ─────────────────────────────
+          async cargarLogoBase64(url) {
+            try {
+              const resp = await fetch(url);
+              const blob = await resp.blob();
+              return await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(blob);
+              });
+            } catch { return null; }
+          },
+
+          // ─── Template PDF ────────────────────────────
+          escapeHtml(s) {
+            return String(s || '')
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;');
+          },
+
+          renderizarHTMLPDF(factura, numero) {
+            const lineas = factura.factura_lineas || [];
+            const filas = [...lineas];
+            while (filas.length < 10) filas.push(null);
+
+            const fmtM = (n) => n != null && n !== '' ? '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+            const fmtD = (iso) => {
+              if (!iso) return '';
+              const d = new Date(iso + 'T12:00:00');
+              return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            };
+
+            const billToName  = this.escapeHtml(factura.bill_to_name_snapshot || '');
+            const billToAddr1 = this.escapeHtml(factura.bill_to_address_1_snapshot || '');
+            const billToAddr2 = this.escapeHtml(factura.bill_to_address_2_snapshot || '');
+            const billToCity  = [factura.bill_to_city_snapshot, factura.bill_to_state_snapshot, factura.bill_to_zip_snapshot].filter(Boolean).join(', ');
+
+            const partes = (factura.descripcion_general || '').split('\n');
+            const forProperty = this.escapeHtml(partes[0] || '');
+            const forPeriod   = this.escapeHtml(partes[1] || '');
+            const forDesc     = this.escapeHtml(partes.slice(2).join(' ') || '');
+
+            const logoSrc = this.logoBase64 || '/assets/ak-logo.png';
+
+            const rowsHTML = filas.map((l, i) => {
+              const bg = i % 2 === 0 ? '#ffffff' : '#f9f9f9';
+              return `<tr style="background:${bg}; border-bottom:1px solid #eeeeee;">
+                <td style="padding:5px 8px; font-size:9px; vertical-align:top; width:15%;">${l?.fecha ? fmtD(l.fecha) : '&nbsp;'}</td>
+                <td style="padding:5px 8px; font-size:9px; vertical-align:top;">${l?.descripcion ? this.escapeHtml(l.descripcion) : '&nbsp;'}</td>
+                <td style="padding:5px 8px; font-size:9px; text-align:center; vertical-align:top; width:8%;">${l?.qty != null ? Number(l.qty) : '&nbsp;'}</td>
+                <td style="padding:5px 8px; font-size:9px; text-align:right; vertical-align:top; width:14%;">${l?.precio_unitario ? fmtM(l.precio_unitario) : '&nbsp;'}</td>
+                <td style="padding:5px 8px; font-size:9px; text-align:right; vertical-align:top; width:14%;">${l?.total ? fmtM(l.total) : '&nbsp;'}</td>
+              </tr>`;
+            }).join('');
+
+            return `<div style="font-family:Arial,Helvetica,sans-serif; font-size:10px; color:#333; padding:14mm 14mm 10mm 14mm; width:182mm; margin:0 auto; box-sizing:border-box;">
+
+              <!-- Header -->
+              <table style="width:100%; border-collapse:collapse; margin-bottom:8mm;">
+                <tr>
+                  <td style="width:22%; vertical-align:top;">
+                    <img src="${logoSrc}" style="width:64px; height:64px; border-radius:50%; object-fit:cover;">
+                  </td>
+                  <td style="width:45%; vertical-align:middle; text-align:center; padding:0 8px;">
+                    <div style="font-size:11px; font-weight:bold; color:#0a1628; line-height:1.3;">AK PROPERTY MANAGEMENT</div>
+                    <div style="font-size:11px; font-weight:bold; color:#0a1628; line-height:1.3;">CONCIERGE SERVICES</div>
+                    <div style="margin-top:4px; font-size:9px; color:#555;">Miami Beach, FL 33140</div>
+                    <div style="font-size:9px; color:#555;">786-253-7983</div>
+                    <div style="font-size:9px; color:#555;">akconciergeservices@gmail.com</div>
+                  </td>
+                  <td style="width:33%; vertical-align:top; text-align:right;">
+                    <div style="font-size:22px; font-weight:bold; color:#0a1628; letter-spacing:1px; margin-bottom:5px;">INVOICE</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:9px;">
+                      <tr>
+                        <td style="background:#e8e8e8; padding:4px 8px; color:#666; border:1px solid #ddd;">INVOICE #</td>
+                        <td style="background:#e8e8e8; padding:4px 8px; text-align:right; font-weight:bold; border:1px solid #ddd; border-left:none;">${numero}</td>
+                      </tr>
+                      <tr>
+                        <td style="background:#f2f2f2; padding:4px 8px; color:#666; border:1px solid #ddd; border-top:none;">DATE</td>
+                        <td style="background:#f2f2f2; padding:4px 8px; text-align:right; border:1px solid #ddd; border-left:none; border-top:none;">${fmtD(factura.fecha)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- BILL TO / FOR -->
+              <table style="width:100%; border-collapse:collapse; margin-bottom:7mm;">
+                <tr>
+                  <td style="width:50%; background:#f5f5f5; padding:7px 10px; vertical-align:top; border:1px solid #ddd;">
+                    <div style="font-weight:bold; font-size:8px; color:#888; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:5px;">BILL TO</div>
+                    <div style="font-weight:bold; font-size:10px;">${billToName}</div>
+                    ${billToAddr1 ? `<div style="font-size:9px; margin-top:2px;">${billToAddr1}</div>` : ''}
+                    ${billToAddr2 ? `<div style="font-size:9px;">${billToAddr2}</div>` : ''}
+                    ${billToCity  ? `<div style="font-size:9px;">${this.escapeHtml(billToCity)}</div>` : ''}
+                  </td>
+                  <td style="width:50%; background:#f5f5f5; padding:7px 10px; vertical-align:top; border:1px solid #ddd; border-left:none;">
+                    <div style="font-weight:bold; font-size:8px; color:#888; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:5px;">FOR</div>
+                    ${forProperty ? `<div style="font-weight:bold; font-size:10px;">${forProperty}</div>` : ''}
+                    ${forPeriod   ? `<div style="font-size:9px; margin-top:2px;">${forPeriod}</div>` : ''}
+                    ${forDesc     ? `<div style="font-size:9px;">${forDesc}</div>` : ''}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Tabla de líneas -->
+              <table style="width:100%; border-collapse:collapse; margin-bottom:5mm;">
+                <thead>
+                  <tr style="background:#0a1628; color:white;">
+                    <th style="padding:6px 8px; text-align:left; font-size:9px; font-weight:bold; width:15%;">DATE</th>
+                    <th style="padding:6px 8px; text-align:left; font-size:9px; font-weight:bold;">DESCRIPTION</th>
+                    <th style="padding:6px 8px; text-align:center; font-size:9px; font-weight:bold; width:8%;">QTY</th>
+                    <th style="padding:6px 8px; text-align:right; font-size:9px; font-weight:bold; width:14%;">UNIT PRICE</th>
+                    <th style="padding:6px 8px; text-align:right; font-size:9px; font-weight:bold; width:14%;">TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>${rowsHTML}</tbody>
+              </table>
+
+              <!-- Total Due -->
+              <table style="width:100%; border-collapse:collapse; margin-bottom:9mm;">
+                <tr>
+                  <td style="width:55%;"></td>
+                  <td style="width:45%;">
+                    <table style="width:100%; border-collapse:collapse;">
+                      <tr style="background:#0a1628; color:white;">
+                        <td style="padding:9px 12px; font-size:10px; font-weight:bold; letter-spacing:0.8px; text-transform:uppercase;">TOTAL DUE</td>
+                        <td style="padding:9px 12px; font-size:16px; font-weight:bold; text-align:right;">${fmtM(factura.total_due)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Footer -->
+              <table style="width:100%; border-collapse:collapse; border-top:2px solid #0a1628; padding-top:6mm;">
+                <tr>
+                  <td style="width:50%; vertical-align:top; padding:7px 10px 7px 0; padding-top:7px;">
+                    <div style="font-weight:bold; font-size:8px; text-transform:uppercase; letter-spacing:0.8px; color:#0a1628; margin-bottom:5px;">PAYMENT INFORMATION</div>
+                    <div style="font-size:9px; margin-bottom:3px;">Make checks payable to:</div>
+                    <div style="font-size:9px; font-weight:bold; margin-bottom:4px;">AK Property Management Concierge Services</div>
+                    <div style="font-size:9px;"><strong>Citibank</strong></div>
+                    <div style="font-size:9px;">Routing Number: 266086554</div>
+                    <div style="font-size:9px;">Account Number: 9135063896</div>
+                    <div style="font-size:9px;">SWIFT Code: CITIUS33</div>
+                  </td>
+                  <td style="width:50%; vertical-align:top; padding:7px 0 7px 10px; padding-top:7px; border-left:1px solid #e0e0e0;">
+                    <div style="font-weight:bold; font-size:8px; text-transform:uppercase; letter-spacing:0.8px; color:#0a1628; margin-bottom:5px;">THANK YOU!</div>
+                    <div style="font-size:9px; margin-bottom:4px;">Thank you for choosing AK Concierge Services.</div>
+                    <div style="font-size:9px;">If you have any questions concerning this invoice,</div>
+                    <div style="font-size:9px; margin-bottom:4px;">please contact:</div>
+                    <div style="font-size:9px; font-weight:bold;">Andrea Manca</div>
+                    <div style="font-size:9px;">786-253-7983</div>
+                    <div style="font-size:9px;">andyflo@hotmail.com</div>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="text-align:center; margin-top:5mm; font-size:9px; color:#888;">
+                www.akconciergeservices.com
+              </div>
+            </div>`;
           },
 
           // ─── Toasts ──────────────────────────────────
