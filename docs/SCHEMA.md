@@ -1,13 +1,26 @@
 # Schema Supabase — AK Property Management
 
-> Inferido de `*-api.js` y de las migrations. Si algo no está, marcar `[VERIFICAR EN SUPABASE]`.
-> Para tener la verdad absoluta: pedirle a Leonardo que exporte desde Supabase Dashboard → Database → Schema visualizer, o que corra:
-> ```sql
-> SELECT table_name, column_name, data_type
-> FROM information_schema.columns
-> WHERE table_schema = 'public'
-> ORDER BY table_name, ordinal_position;
-> ```
+> **Verificado 11 May 2026** contra Supabase real. Este archivo es la fuente de verdad.
+> Las secciones marcadas `[VERIFICAR]` siguen sin confirmación directa.
+
+## ⚠️ Correcciones críticas vs. documentación anterior
+
+| Tabla | Campo documentado (INCORRECTO) | Campo real |
+|---|---|---|
+| `clientes` | `bill_to_nombre` | `bill_to_name` |
+| `clientes` | `bill_to_direccion_1/2` | `bill_to_address_1/2` |
+| `clientes` | `bill_to_ciudad` | `bill_to_city` |
+| `clientes` | `bill_to_diferente bool` | **no existe** |
+| `clientes` | `metodo_contacto_preferido` | `metodo_contacto` |
+| `clientes` | `idioma_preferido` | **no existe** |
+| `cliente_contactos` | `es_primario` | `es_principal` |
+| `empleadas` | `contract_type` | `tipo_contrato` |
+| `empleadas` | `disponibilidad jsonb` | `disponibilidad text` |
+| `empleadas` | `documentos jsonb` | `doc_seguro_url text`, `doc_id_url text` |
+| `factura_counter` | `siguiente_numero` | `proximo_numero` |
+| `facturas` | `fecha_emision` | `fecha` |
+| `facturas` | `enviada_a_email` | `enviada_a` |
+| `facturas` | `total` | `total_due` |
 
 ## Tablas confirmadas (en uso)
 
@@ -24,21 +37,31 @@
 
 ### `clientes`
 - `id uuid PK`
-- `tipo text` ('individual'|'business'|'trust'|'llc')
-- `nombre text`, `apellido text`
+- `nombre text NOT NULL`, `apellido text NOT NULL`
+- `email text`, `telefono text NOT NULL`
+- `metodo_contacto text` (default 'whatsapp') — **NO** `metodo_contacto_preferido`
+- `tipo text NOT NULL` ('individual'|'business'|'trust'|'llc'), default 'individual'
 - `razon_social text`, `tax_id text` (para business/trust/llc)
-- `email text`, `telefono text`
-- `metodo_contacto_preferido text`
-- `idioma_preferido text`
-- `bill_to_diferente bool`
-- `bill_to_nombre text`, `bill_to_direccion_1 text`, `bill_to_direccion_2 text`, `bill_to_ciudad text`, `bill_to_state text`, `bill_to_zip text`
+- `bill_to_name text` — **NO** `bill_to_nombre`
+- `bill_to_email text`
+- `bill_to_address_1 text` — **NO** `bill_to_direccion_1`
+- `bill_to_address_2 text`
+- `bill_to_city text` — **NO** `bill_to_ciudad`
+- `bill_to_state text`, `bill_to_zip text`
 - `notas_vip text`
-- `activo bool`, `creado_en timestamptz`, `creado_por uuid`
+- `activo bool NOT NULL` (default true)
+- `creado_por uuid`, `creado_en timestamptz`
+- `actualizado_por uuid`, `actualizado_en timestamptz`
+- **NO existe** `bill_to_diferente` ni `idioma_preferido`
 
 ### `cliente_contactos`
-- `id uuid PK`, `cliente_id uuid FK`
-- `nombre text`, `email text`, `telefono text`, `rol text`
-- `es_primario bool`, `recibe_facturas bool`, `recibe_reportes bool`
+- `id uuid PK`, `cliente_id uuid NOT NULL FK`
+- `nombre text NOT NULL`, `rol text`, `telefono text`, `email text`
+- `es_principal bool NOT NULL` (default false) — **NO** `es_primario`
+- `recibe_facturas bool NOT NULL` (default false)
+- `recibe_reportes bool NOT NULL` (default false)
+- `notas text`
+- `creado_en timestamptz`
 
 ### `edificios`
 - `id uuid PK`
@@ -59,11 +82,12 @@
 
 ### `empleadas`
 - `id uuid PK`
-- `usuario_id uuid FK` (rol='empleada')
+- `usuario_id uuid NOT NULL FK`
 - `tipos_servicio text[]`
-- `contract_type text` ('w2'|'1099')
-- `disponibilidad jsonb` [VERIFICAR estructura]
-- `documentos jsonb` [VERIFICAR]
+- `tipo_contrato text` — **NO** `contract_type`
+- `disponibilidad text` — **NO** jsonb
+- `doc_seguro_url text`, `doc_id_url text` — **NO** `documentos jsonb`
+- `creado_en timestamptz`, `actualizado_en timestamptz`
 
 ### `proveedores`
 - `id uuid PK`
@@ -134,17 +158,76 @@
 - `descripcion text`, `orden int`, `obligatorio bool`
 - `completado bool`, `completado_en timestamptz`, `completado_por uuid FK`
 
-## Tablas preparadas pero NO en uso en V1
-(Confirmar si están creadas en Supabase antes de empezar Bloque J)
+### `audit_log` ✅ EXISTE EN SUPABASE
+- `id bigint PK` (sequence, **NO** uuid)
+- `tabla text NOT NULL`
+- `fila_id uuid NOT NULL`
+- `operacion text NOT NULL` ('INSERT'|'UPDATE'|'DELETE')
+- `cambios jsonb NOT NULL` — `to_jsonb(NEW)` en INSERT, `{old, new}` en UPDATE, `to_jsonb(OLD)` en DELETE
+- `usuario_id uuid NULLABLE`
+- `creado_en timestamptz NOT NULL` (default now())
 
-- `recurrencias` (decisión A5 Opus, separada de OS)
-- `tareas`, `reportes` (Bloque K Field Reports)
-- `facturas`, `factura_lineas`, `factura_pagos` (Bloque J — verificar antes de empezar)
-- `factura_counter` (numeración correlativa con FOR UPDATE, arranca en 1001)
-- `notas_credito` (refunds)
-- `facturas_outbox` (preparada para V2 envío automático con worker)
-- `audit_log` (auditoría general)
-- `notificaciones` (in-app + email)
+### `factura_adjuntos` ✅ EXISTE EN SUPABASE (tabla nueva, no documentada antes)
+- `id uuid PK`
+- `factura_id uuid NOT NULL FK`
+- `url text NOT NULL`
+- `nombre_archivo text`, `tipo text`
+- `visible_para_cliente bool NOT NULL` (default true)
+- `creado_en timestamptz NOT NULL`
+
+### `factura_counter` ✅ EXISTE EN SUPABASE
+- `id integer PK` (default 1, single row)
+- `proximo_numero integer NOT NULL` (default 1001) — **NO** `siguiente_numero`
+- Estado actual: `id=1, proximo_numero=1001` (sin facturas emitidas todavía)
+
+### `facturas` ✅ EXISTE EN SUPABASE
+- `id uuid PK`
+- `numero integer NULLABLE` (NULL en drafts, asignado en Generate Final)
+- `cliente_id uuid NOT NULL FK`
+- `idempotency_key uuid` (auto-generado por trigger)
+- `fecha date NOT NULL` (default CURRENT_DATE) — **NO** `fecha_emision`
+- `periodo_servicio text`
+- `descripcion_general text`
+- `subtotal numeric NOT NULL` (default 0)
+- `descuento_total numeric NOT NULL` (default 0)
+- `tax_total numeric NOT NULL` (default 0)
+- `total_due numeric NOT NULL` (default 0) — **NO** `total`
+- `estado text NOT NULL` ('borrador'|'generada'|'enviada'|'pagada'|'anulada'), default 'borrador'
+- `pdf_url text`
+- `enviada_en timestamptz`, `enviada_a text` — **NO** `enviada_a_email`
+- `notas text`
+- `version integer NOT NULL` (default 1, manejado por trigger)
+- `creado_por uuid`
+- `creado_en timestamptz NOT NULL`
+- Snapshot bill_to (7 columnas, agregadas 11 May 2026):
+  - `bill_to_name_snapshot text`
+  - `bill_to_email_snapshot text`
+  - `bill_to_address_1_snapshot text`
+  - `bill_to_address_2_snapshot text`
+  - `bill_to_city_snapshot text`
+  - `bill_to_state_snapshot text`
+  - `bill_to_zip_snapshot text`
+
+### `factura_lineas` ✅ EXISTE EN SUPABASE
+- `id uuid PK`, `factura_id uuid NOT NULL FK`
+- `os_id uuid NULLABLE FK`, `os_servicio_id uuid NULLABLE FK` (NULL en líneas manuales)
+- `fecha date NULLABLE`
+- `descripcion text NOT NULL`
+- `qty numeric NOT NULL` (default 1) — **NO** `cantidad`
+- `precio_unitario numeric NOT NULL` (default 0)
+- `descuento numeric NOT NULL` (default 0)
+- `taxable bool NOT NULL` (default false)
+- `tax_pct numeric NOT NULL` (default 0)
+- `tax_monto numeric NOT NULL` (default 0)
+- `total numeric NOT NULL` (default 0)
+- `orden integer NOT NULL` (default 0)
+
+## Tablas pendientes de confirmar
+- `recurrencias` (decisión A5 Opus)
+- `tareas`, `reportes` (Bloque K)
+- `factura_pagos`, `notas_credito` [VERIFICAR EN SUPABASE]
+- `facturas_outbox` (V2)
+- `notificaciones` (V2)
 
 ## RLS Policies confirmadas
 

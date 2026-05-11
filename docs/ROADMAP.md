@@ -32,75 +32,34 @@ Cuando Leonardo diga "vamos con Bloque X", primero:
 
 ### Numeración
 - Tabla `factura_counter` con `FOR UPDATE` (decisión Opus A3, NO usar SEQUENCE de Postgres porque dejaría huecos legalmente problemáticos).
-- Arranca en **1001**.
-- **Acción**: verificar si la tabla existe en Supabase. Si no, crearla:
+- Arranca en **1001**. Tabla y función **ya existen en Supabase** (11 May 2026).
+- Columna real: `proximo_numero` (**NO** `siguiente_numero` como estaba documentado antes).
+- Función para obtener siguiente número (usar internamente en Etapa 2):
   ```sql
-  CREATE TABLE factura_counter (
-    id int PRIMARY KEY DEFAULT 1,
-    siguiente_numero int NOT NULL DEFAULT 1001,
-    CONSTRAINT factura_counter_single_row CHECK (id = 1)
-  );
-  INSERT INTO factura_counter (id, siguiente_numero) VALUES (1, 1001);
-  ```
-  Y la función:
-  ```sql
+  -- La tabla ya existe. La función a usar en Etapa 2:
   CREATE OR REPLACE FUNCTION siguiente_numero_factura() RETURNS int AS $$
   DECLARE nro int;
   BEGIN
     UPDATE factura_counter
-    SET siguiente_numero = siguiente_numero + 1
+    SET proximo_numero = proximo_numero + 1
     WHERE id = 1
-    RETURNING siguiente_numero - 1 INTO nro;
+    RETURNING proximo_numero - 1 INTO nro;
     RETURN nro;
   END;
   $$ LANGUAGE plpgsql;
   ```
+- Función de rollback ya creada: `devolver_numero_factura(p_numero integer) RETURNS boolean`
 
 ### Schema de tablas (verificar en Supabase, crear si faltan)
 
 ```sql
--- facturas
-CREATE TABLE facturas (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  numero int UNIQUE NOT NULL,
-  cliente_id uuid REFERENCES clientes(id) NOT NULL,
-  fecha_emision date NOT NULL DEFAULT current_date,
-  periodo_servicio text,
-  bill_to_nombre text,
-  bill_to_direccion text,
-  subtotal numeric(12,2) NOT NULL DEFAULT 0,
-  tax_total numeric(12,2) NOT NULL DEFAULT 0,
-  descuento_total numeric(12,2) NOT NULL DEFAULT 0,
-  total numeric(12,2) NOT NULL DEFAULT 0,
-  estado text CHECK (estado IN ('borrador','generada','enviada','pagada','anulada')),
-  enviada_en timestamptz,
-  enviada_a_email text,
-  pdf_url text,
-  notas text,
-  idempotency_key text UNIQUE,
-  version int DEFAULT 1,
-  creado_por uuid REFERENCES usuarios(id),
-  creado_en timestamptz DEFAULT now(),
-  actualizado_por uuid REFERENCES usuarios(id),
-  actualizado_en timestamptz DEFAULT now()
-);
+-- facturas — YA EXISTE en Supabase con el schema real verificado 11 May 2026.
+-- Columnas reales: fecha (no fecha_emision), total_due (no total),
+-- enviada_a (no enviada_a_email), bill_to_*_snapshot (no bill_to_nombre/direccion).
+-- El CREATE TABLE de referencia está en docs/SCHEMA.md.
 
--- factura_lineas
-CREATE TABLE factura_lineas (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  factura_id uuid REFERENCES facturas(id) ON DELETE CASCADE NOT NULL,
-  orden int NOT NULL,
-  os_id uuid REFERENCES ordenes_servicio(id),
-  fecha date,
-  descripcion text NOT NULL,
-  cantidad numeric(10,2) NOT NULL DEFAULT 1,
-  precio_unitario numeric(12,2) NOT NULL,
-  taxable bool NOT NULL DEFAULT false,
-  tax_pct numeric(5,2) DEFAULT 0,
-  tax_monto numeric(12,2) DEFAULT 0,
-  descuento numeric(12,2) DEFAULT 0,
-  total numeric(12,2) NOT NULL
-);
+-- factura_lineas — YA EXISTE. Columna real: qty (no cantidad).
+-- El schema completo está en docs/SCHEMA.md.
 
 -- factura_pagos
 CREATE TABLE factura_pagos (
