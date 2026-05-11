@@ -7,7 +7,24 @@ Cuando Leonardo diga "vamos con Bloque X", primero:
 2. Preguntar decisiones abiertas (UX, scope, dependencias).
 3. Solo cuando esté claro: generar archivos en etapas chicas.
 
-## Próximo: Bloque J — Invoicing
+## Bloque J — Invoicing (EN PROGRESO)
+
+### Etapa 1 ✅ DONE — validada en Brave (commit `8f0db13`)
+Drafts ABM: lista con tabs, búsqueda, filtro cliente, CRUD, líneas manuales, Total Due en vivo.
+
+### Etapa 2 ✅ CODEADA — pendiente validación en Mac (commit `02ae9c5`)
+Generate Final + PDF (html2pdf.js) + Storage upload + preview modal + Void + Download.
+Fix del bug `<input type="date">`. Rollback completo si falla post-numeración.
+Ver `docs/PENDIENTES.md` para checklist de validación.
+
+### Etapa 3 — pendiente
+Selección de OS no facturadas: listar OS completadas no facturadas del cliente,
+checkbox para incluir, auto-populate líneas desde `os_servicios`.
+
+### Etapa 4 — pendiente
+Send to Client (email via SendGrid Edge Function) + registro de pagos (`factura_pagos`).
+
+---
 
 ### Decisión clave
 **Facturación V1 = MANUAL**. Andy decide cuándo facturar, no hay trigger automático al completar OS. Razón: en V1 prima el control humano; el outbox/worker automático queda para V2.

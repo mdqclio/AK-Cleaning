@@ -1,12 +1,41 @@
 # Estado actual del sistema
 
+## Sesión 11 May 2026 — Block J Etapas 1 y 2
+
+### Etapa 1: DONE (commit `8f0db13`) ✅ VALIDADO en Brave
+- `panel/invoices/index.html`, `css/invoices.css`, `js/invoices-api.js`
+- Funciones API: listarFacturas, obtenerFactura, crearFactura, actualizarFactura, eliminarFactura, listarClientesActivos, traducirError
+- Validación manual: crear → editar (add line) → eliminar → todo OK
+
+### Etapa 2: CODEADA (commit `02ae9c5`) ⚠️ SIN VALIDAR EN MAC
+- Generate Final: número correlativo, snapshot bill_to, PDF con html2pdf.js, Storage upload, preview iframe
+- Void Invoice, Download PDF en tabla y modal
+- Fix del bug `<input type="date">` (`:value` + `@change` en vez de `x-model`)
+- Rollback completo si falla post-numeración: `devolver_numero_factura()` + revertir a borrador
+- **Ver `docs/PENDIENTES.md` para el checklist de validación**
+
+### Schema introspección: DONE
+- Correcciones críticas documentadas en `SCHEMA.md` (columnas reales vs. supuestas)
+- Funciones SQL y triggers verificados y documentados
+
+### Logo: DONE
+- `assets/ak-logo.png` en repo (commit `e3e8f46`). 400x400px, fondo negro circular
+
+### Setup Supabase Etapa 2: DONE
+- Función `devolver_numero_factura(p_numero integer)` creada
+- Bucket Storage `facturas` público, 4 policies RLS
+- 7 columnas `bill_to_*_snapshot` en tabla facturas
+
+---
+
 ## Commit estable de referencia
 `8f0db13` — Block J Etapa 1 validado (Invoices drafts ABM completo).
 
 ## Commit actual `main`
-Block J Etapa 1 completa. Etapa 2 (Generate Final + PDF) pendiente.
+`02ae9c5` — Block J Etapa 2 codeada (Generate Final + PDF + Storage). Pendiente validación en Mac.
 
 Commits del Bloque J:
+- `02ae9c5` Block J Etapa 2: Generate Final + PDF + Storage ⚠️ SIN VALIDAR
 - `8f0db13` Block J Etapa 1: Invoices drafts ABM ✅ VALIDADO en Brave
 
 Commits del Bloque I (referencia):
@@ -96,21 +125,14 @@ Leonardo decidió **NO cargar datos de prueba más**. Plan: hacer entrar a Andy 
 
 ### Etapa 1 ✅ VALIDADA (commit `8f0db13`)
 - Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total Due en vivo.
-- **Bug conocido diferido:** `<input type="date">` no muestra valor visual inicial aunque Alpine tiene el dato. Fix en Etapa 2.
 
-### Setup Supabase para Etapa 2 ✅ HECHO
-- Función `devolver_numero_factura(p_numero integer) RETURNS boolean` creada.
-- Bucket Storage `facturas` (public=true), 4 policies aplicadas.
-- Path PDF: `facturas/<año>/<numero>.pdf`
-
-### Etapa 2 — PRÓXIMA (Generate Final + PDF)
-Decisiones cerradas:
-- Confirm dialog antes de generar: "Once generated, the invoice number cannot be changed. Continue?"
-- Vista post-generate: iframe del PDF en modal + Download + Close
-- Si falla upload: rollback con `devolver_numero_factura()` + estado vuelve a 'borrador'
-- PDF generado con html2pdf.js (client-side)
-- Logo: `assets/ak-logo.png` (ya en repo)
-- Snapshot bill_to copiado de `clientes.*` al momento de Generate Final
+### Etapa 2 ✅ CODEADA — pendiente validación en Mac (commit `02ae9c5`)
+- Generate Final: número correlativo via `siguiente_numero_factura()`, snapshot bill_to, PDF con html2pdf.js, upload a Storage, preview modal.
+- Void Invoice (generada → anulada).
+- Download PDF en tabla y modal.
+- Fix del bug date input (`:value` + `@change`).
+- Rollback completo si falla: `devolver_numero_factura()` + revertir a borrador.
+- **Checklist de validación en `docs/PENDIENTES.md`**
 
 ### Etapas 3 y 4 — pendientes
 - Etapa 3: Selección de OS no facturadas (auto-populate líneas desde `os_servicios`)

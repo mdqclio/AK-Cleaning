@@ -196,12 +196,49 @@ Cada `*-api.js` exporta `traducirError(error)` que mapea mensajes Postgres a ing
 
 **NUNCA** batchear varios cambios funcionales en un solo commit.
 
+## Storage de archivos (Supabase Storage)
+
+### Bucket `facturas`
+- Público (acceso por URL directa, sin token)
+- Sin restricción de MIME types
+- Estructura de paths: `facturas/<año>/<numero>.pdf` (ej `facturas/2026/1001.pdf`)
+
+### Patrón de upload + URL pública
+```js
+const path = `${año}/${numero}.pdf`;
+
+// Upload
+const { error } = await supabase.storage
+  .from('facturas')
+  .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+// URL pública (no expira, bucket público)
+const { data: { publicUrl } } = supabase.storage
+  .from('facturas')
+  .getPublicUrl(path);
+```
+
+### RLS del bucket
+Usan `tiene_acceso_admin()` igual que las tablas:
+- INSERT / UPDATE / DELETE: solo admins
+- SELECT: público (cualquiera con el link)
+
+### PDF con html2pdf.js
+- CDN: `https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js`
+- El div de render (`#pdf-render-area`) va FUERA del `x-data` de Alpine, `position:fixed; left:-9999px`
+- Logo precargado como base64 en `init()` para evitar problemas CORS con html2canvas
+- Opciones: `{ margin:0, html2canvas: { scale:2, useCORS:true }, jsPDF: { format:'a4' } }`
+- Output: `.outputPdf('blob')` → luego `URL.createObjectURL(blob)` para el preview iframe
+- Revocar el blob URL al cerrar preview: `URL.revokeObjectURL(url)`
+
 ## Bug patterns conocidos (no repetir)
 - `return` top-level en module → IIFE async
 - `x-show` + `x-model` en propiedades de objeto null → `x-if`
 - FKs ambiguas en embed → especificar nombre del constraint
 - `cat > heredoc` para JS/CSS → corrompe con HTML wrapper
-- Brave + loops Alpine → crashea pestaña; usar Chrome
+- Brave + loops Alpine → crashea pestaña; usar Chrome para testear primero
 - Chrome consola bloquea paste → `allow pasting`
 - `sb_publishable_*` key → no funciona en REST; usar legacy JWT
 - Status 300 + disk cache → DevTools "Disable cache"
+- `<input type="date">` con `x-model` no muestra valor inicial → usar `:value` + `@change`
+- `html2pdf` en Brave puede fallar si bloquea el CDN de cdnjs → usar Chrome
