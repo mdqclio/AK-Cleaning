@@ -1,19 +1,16 @@
 # Estado actual del sistema
 
 ## Commit estable de referencia
-`d4f91c6` — Bloque H validado y funcionando (Service Orders completo, sin Bloque I).
+`8f0db13` — Block J Etapa 1 validado (Invoices drafts ABM completo).
 
 ## Commit actual `main`
-Bloque I aplicado en 3 etapas (templates ABM + apply to OS + manual items + mandatory validation con override admin).
+Block J Etapa 1 completa. Etapa 2 (Generate Final + PDF) pendiente.
 
-Commits del Bloque I:
+Commits del Bloque J:
+- `8f0db13` Block J Etapa 1: Invoices drafts ABM ✅ VALIDADO en Brave
+
+Commits del Bloque I (referencia):
 - `5ed858e` Bloque I etapa 3.3: validación de obligatorios al completar OS
-- `b4b749b` Bloque I etapa 3.2: items manuales en checklist de OS
-- `f42e5dd` Bloque I etapa 3.1: borrar items del checklist de OS
-- `da20ac7` Bloque I etapa 2: Sección Checklist simple en modal de OS
-- `2d8e21c` Bloque I etapa 2: API para checklist de OS
-- `de6b7c1` Fix: especificar foreign key explicita para plantillas-servicios
-- `1d12efb` Bloque I: Checklist templates module
 
 ## Bloques completados
 
@@ -95,13 +92,26 @@ Commits del Bloque I:
 ## Pendientes de carga real
 Leonardo decidió **NO cargar datos de prueba más**. Plan: hacer entrar a Andy a cargar sus datos reales y depurar con feedback de uso real.
 
-## Bloque J — Invoicing (SIGUIENTE)
-Ver `docs/ROADMAP.md → Bloque J` para el flujo manual completo y los 11 pasos del proceso de facturación.
+## Block J — Invoicing EN PROGRESO
 
-## Antes de empezar Bloque J — requisitos
-1. **Verificar 3 preguntas pendientes a Andy** (enviadas, sin respuesta):
-   - ¿AK tiene Florida sales tax certificate? ¿Qué servicios cobran tax?
-   - ¿Cómo cobran hoy? (wire, Zelle, ACH, check, Stripe)
-   - ¿Tienen contador? ¿QuickBooks? (define si hay que prever export)
-2. **Confirmar que existen las tablas** en Supabase: `facturas`, `factura_lineas`, `factura_pagos`, `notas_credito`, `factura_counter`, `facturas_outbox`. Si no, crearlas con el SQL del roadmap.
-3. **Numeración**: secuencia arranca en **1001** vía tabla `factura_counter` con `FOR UPDATE`.
+### Etapa 1 ✅ VALIDADA (commit `8f0db13`)
+- Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total Due en vivo.
+- **Bug conocido diferido:** `<input type="date">` no muestra valor visual inicial aunque Alpine tiene el dato. Fix en Etapa 2.
+
+### Setup Supabase para Etapa 2 ✅ HECHO
+- Función `devolver_numero_factura(p_numero integer) RETURNS boolean` creada.
+- Bucket Storage `facturas` (public=true), 4 policies aplicadas.
+- Path PDF: `facturas/<año>/<numero>.pdf`
+
+### Etapa 2 — PRÓXIMA (Generate Final + PDF)
+Decisiones cerradas:
+- Confirm dialog antes de generar: "Once generated, the invoice number cannot be changed. Continue?"
+- Vista post-generate: iframe del PDF en modal + Download + Close
+- Si falla upload: rollback con `devolver_numero_factura()` + estado vuelve a 'borrador'
+- PDF generado con html2pdf.js (client-side)
+- Logo: `assets/ak-logo.png` (ya en repo)
+- Snapshot bill_to copiado de `clientes.*` al momento de Generate Final
+
+### Etapas 3 y 4 — pendientes
+- Etapa 3: Selección de OS no facturadas (auto-populate líneas desde `os_servicios`)
+- Etapa 4: Send to Client + registro de pagos
