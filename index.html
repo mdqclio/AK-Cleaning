@@ -17,8 +17,8 @@
   </div>
 
   <script type="module">
-    import { obtenerSesionActual } from 'js/auth.js';
-    import { redirigirSegunRol } from 'js/router.js';
+    import { obtenerSesionActual } from './js/auth.js';
+    import { redirigirSegunRol } from './js/router.js';
 
     // Si ya hay sesión, redirigir al panel del rol
     const sesion = await obtenerSesionActual();
