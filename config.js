@@ -24,7 +24,7 @@ const APP_CONFIG = {
     contacto_facturas: {
       nombre: 'Andrea Manca',
       telefono: '786-253-7983',
-      email: 'andyflo@hotmail.com'
+      email: 'andy.flo@hotmail.com'
     },
     banco: {
       nombre: 'Citibank',

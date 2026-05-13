@@ -45,7 +45,7 @@ Send to Client (email via SendGrid Edge Function) + registro de pagos (`factura_
 - **Payable to**: AK Property Management Concierge Services
 
 ### Contacto facturación (footer)
-- Andrea Manca · 786-253-7983 · andyflo@hotmail.com
+- Andrea Manca · 786-253-7983 · andy.flo@hotmail.com
 
 ### Numeración
 - Tabla `factura_counter` con `FOR UPDATE` (decisión Opus A3, NO usar SEQUENCE de Postgres porque dejaría huecos legalmente problemáticos).
