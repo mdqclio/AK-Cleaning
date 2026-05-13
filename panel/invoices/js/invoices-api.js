@@ -1,7 +1,7 @@
 // panel/invoices/js/invoices-api.js
 // Funciones de acceso a Supabase para el módulo de Invoices.
 
-import { supabase } from '/js/supabase-client.js';
+import { supabase } from '../../../js/supabase-client.js';
 
 // ─── LISTADO ─────────────────────────────────────────
 

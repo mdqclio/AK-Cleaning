@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Staff — AK Cleaning</title>
-  <link rel="stylesheet" href="/css/base.css" />
-  <link rel="stylesheet" href="/css/components.css" />
-  <link rel="stylesheet" href="/panel/css/panel.css" />
-  <link rel="stylesheet" href="/panel/clients/css/clients.css" />
-  <link rel="stylesheet" href="/panel/staff/css/staff.css" />
+  <link rel="stylesheet" href="../../css/base.css" />
+  <link rel="stylesheet" href="../../css/components.css" />
+  <link rel="stylesheet" href="../css/panel.css" />
+  <link rel="stylesheet" href="../clients/css/clients.css" />
+  <link rel="stylesheet" href="css/staff.css" />
 </head>
 <body>
 
@@ -379,12 +379,12 @@
 
 
 <script type="module">
-  import { iniciarPanel }         from '/panel/js/panel-shell.js';
+  import { iniciarPanel }         from '../js/panel-shell.js';
   import {
     listarEmpleadas, obtenerEmpleada, crearEmpleada, actualizarEmpleada,
     toggleEmpleadaActiva, reenviarPasswordReset,
     traducirError, formatearNombreEmpleada, TIPOS_SERVICIO_SUGERIDOS
-  } from '/panel/staff/js/staff-api.js';
+  } from 'js/staff-api.js';
 
   // ── Shared modal store (bridge between table and modal x-data scopes)
   const _modalStore = {

@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard · AK Cleaning & Management</title>
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/panel/css/panel.css">
-  <script src="/config.js"></script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="css/panel.css">
+  <script src="../config.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
@@ -26,7 +26,7 @@
 
         <!-- Metric cards -->
         <section class="cards-grid" id="cards-grid">
-          <a href="/panel/clients/" class="metric-card">
+          <a href="clients/" class="metric-card">
             <div class="metric-card-header">
               <div class="metric-icon"><i data-lucide="users"></i></div>
             </div>
@@ -34,7 +34,7 @@
             <div class="metric-label">Active Clients</div>
           </a>
 
-          <a href="/panel/properties/" class="metric-card">
+          <a href="properties/" class="metric-card">
             <div class="metric-card-header">
               <div class="metric-icon"><i data-lucide="building-2"></i></div>
             </div>
@@ -42,7 +42,7 @@
             <div class="metric-label">Active Properties</div>
           </a>
 
-          <a href="/panel/orders/" class="metric-card">
+          <a href="orders/" class="metric-card">
             <div class="metric-card-header">
               <div class="metric-icon"><i data-lucide="clipboard-list"></i></div>
             </div>
@@ -50,7 +50,7 @@
             <div class="metric-label">Service Orders Today</div>
           </a>
 
-          <a href="/panel/invoices/" class="metric-card">
+          <a href="invoices/" class="metric-card">
             <div class="metric-card-header">
               <div class="metric-icon"><i data-lucide="file-text"></i></div>
             </div>
@@ -58,7 +58,7 @@
             <div class="metric-label">Pending Invoices</div>
           </a>
 
-          <a href="/panel/reports/" class="metric-card">
+          <a href="reports/" class="metric-card">
             <div class="metric-card-header">
               <div class="metric-icon"><i data-lucide="alert-circle"></i></div>
             </div>
@@ -66,7 +66,7 @@
             <div class="metric-label">Unread Reports</div>
           </a>
 
-          <a href="/panel/staff/" class="metric-card">
+          <a href="staff/" class="metric-card">
             <div class="metric-card-header">
               <div class="metric-icon"><i data-lucide="user-circle-2"></i></div>
             </div>
@@ -90,7 +90,7 @@
 
   <script type="module">
     import { iniciarPanel } from './js/panel-shell.js';
-    import { supabase } from '/js/supabase-client.js';
+    import { supabase } from '../js/supabase-client.js';
 
     (async () => {
       // 1. Inicializar shell (protege ruta, arma sidebar/header, activa lucide)

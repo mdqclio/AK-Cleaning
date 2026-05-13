@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Services Catalog · AK Cleaning & Management</title>
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/panel/css/panel.css">
-  <link rel="stylesheet" href="/panel/clients/css/clients.css">
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../css/panel.css">
+  <link rel="stylesheet" href="../clients/css/clients.css">
   <link rel="stylesheet" href="./css/services.css">
-  <script src="/config.js"></script>
+  <script src="../../config.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
@@ -39,7 +39,7 @@
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
-            <a href="/panel/services/checklists.html" class="btn btn-ghost" style="text-decoration: none">
+            <a href="checklists.html" class="btn btn-ghost" style="text-decoration: none">
               <i data-lucide="list-checks"></i>
               Manage Checklists
             </a>
@@ -291,7 +291,7 @@
   </div>
 
   <script type="module">
-    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import { iniciarPanel } from '../js/panel-shell.js';
     import {
       listarServicios, obtenerServicio, crearServicio, actualizarServicio,
       toggleServicioActivo, crearTarifa, eliminarTarifa,

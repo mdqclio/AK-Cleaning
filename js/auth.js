@@ -39,7 +39,7 @@ export async function iniciarSesion(email, password) {
  */
 export async function cerrarSesion() {
   await supabase.auth.signOut();
-  window.location.href = '/login.html';
+  window.location.href = (window.APP_CONFIG?.basePath ?? '') + '/login.html';
 }
 
 /**

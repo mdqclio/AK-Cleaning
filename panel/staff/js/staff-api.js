@@ -1,7 +1,7 @@
 // panel/staff/js/staff-api.js
 // Funciones de acceso a Supabase para el módulo de Staff.
 
-import { supabase } from '/js/supabase-client.js';
+import { supabase } from '../../../js/supabase-client.js';
 
 // ─── CONSTANTES ──────────────────────────────────────
 

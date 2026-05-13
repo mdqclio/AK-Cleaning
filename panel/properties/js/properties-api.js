@@ -1,7 +1,7 @@
 // panel/properties/js/properties-api.js
 // Funciones de acceso a Supabase para propiedades y edificios.
 
-import { supabase } from '/js/supabase-client.js';
+import { supabase } from '../../../js/supabase-client.js';
 
 // ─── PROPIEDADES ─────────────────────────────────────
 

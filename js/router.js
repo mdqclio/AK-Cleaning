@@ -14,7 +14,7 @@ export async function protegerRuta(rolesPermitidos) {
   const sesion = await obtenerSesionActual();
 
   if (!sesion || !sesion.usuario) {
-    window.location.href = '/login.html';
+    window.location.href = (window.APP_CONFIG?.basePath ?? '') + '/login.html';
     return null;
   }
 
@@ -35,6 +35,6 @@ export function redirigirSegunRol(usuario) {
   if (config && config.redirect) {
     window.location.href = config.redirect;
   } else {
-    window.location.href = '/login.html';
+    window.location.href = (window.APP_CONFIG?.basePath ?? '') + '/login.html';
   }
 }

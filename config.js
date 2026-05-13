@@ -1,7 +1,18 @@
 // config.js
 // Configuración global de la app AK Cleaning & Management.
 
+// Detecta el base path para GitHub Pages vs localhost.
+// En GH Pages config.js está en /AK-Cleaning/config.js → basePath = '/AK-Cleaning'
+// En localhost está en /config.js → basePath = ''
+const _BASE = (function () {
+  const src = document.currentScript && document.currentScript.src;
+  if (!src) return '';
+  return src.replace(/\/config\.js(\?.*)?$/, '').replace(/^https?:\/\/[^/]+$/, '');
+})();
+
 const APP_CONFIG = {
+  basePath: _BASE,
+
   empresa: {
     nombre: 'AK Cleaning & Management',
     nombre_legal: 'AK Property Management Concierge Services',
@@ -30,12 +41,12 @@ const APP_CONFIG = {
   },
 
   roles: {
-    superadmin: { label: 'System Admin',  redirect: '/panel/' },
-    owner:      { label: 'Owner',         redirect: '/panel/' },
-    admin:      { label: 'Administrator', redirect: '/panel/' },
-    compras:    { label: 'Purchasing',    redirect: '/panel/' },
-    empleada:   { label: 'Staff',         redirect: '/app-empleada/' },
-    proveedor:  { label: 'Provider',      redirect: '/app-proveedor/' }
+    superadmin: { label: 'System Admin',  redirect: _BASE + '/panel/' },
+    owner:      { label: 'Owner',         redirect: _BASE + '/panel/' },
+    admin:      { label: 'Administrator', redirect: _BASE + '/panel/' },
+    compras:    { label: 'Purchasing',    redirect: _BASE + '/panel/' },
+    empleada:   { label: 'Staff',         redirect: _BASE + '/app-empleada/' },
+    proveedor:  { label: 'Provider',      redirect: _BASE + '/app-proveedor/' }
   },
 
   tema: {

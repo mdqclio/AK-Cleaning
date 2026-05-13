@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>System Health — AK Cleaning</title>
-  <link rel="stylesheet" href="/css/base.css" />
-  <link rel="stylesheet" href="/css/components.css" />
-  <link rel="stylesheet" href="/panel/css/panel.css" />
+  <link rel="stylesheet" href="../../css/base.css" />
+  <link rel="stylesheet" href="../../css/components.css" />
+  <link rel="stylesheet" href="../css/panel.css" />
   <style>
     .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg); }
     .health-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-md); }
@@ -96,8 +96,8 @@
 </div>
 
 <script type="module">
-  import { iniciarPanel } from '/panel/js/panel-shell.js';
-  import { supabase }     from '/js/supabase-client.js';
+  import { iniciarPanel } from '../js/panel-shell.js';
+  import { supabase }     from '../../js/supabase-client.js';
 
   window.healthPage = function () {
     return {

@@ -2,7 +2,7 @@
 // Funciones de acceso a Supabase para Service Orders.
 // CRUD completo + dropdowns de clientes/propiedades/servicios/staff/providers.
 
-import { supabase } from '/js/supabase-client.js';
+import { supabase } from '../../../js/supabase-client.js';
 
 // ─── LISTADO ─────────────────────────────────────────
 

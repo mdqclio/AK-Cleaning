@@ -1,7 +1,7 @@
 // panel/providers/js/providers-api.js
 // Funciones de acceso a Supabase para el módulo de Providers.
 
-import { supabase } from '/js/supabase-client.js';
+import { supabase } from '../../../js/supabase-client.js';
 
 // ─── CONSTANTES ──────────────────────────────────────
 

@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checklist Templates · AK Cleaning & Management</title>
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/panel/css/panel.css">
-  <link rel="stylesheet" href="/panel/clients/css/clients.css">
-  <link rel="stylesheet" href="/panel/services/css/services.css">
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../css/panel.css">
+  <link rel="stylesheet" href="../clients/css/clients.css">
+  <link rel="stylesheet" href="css/services.css">
   <style>
     .items-list { display: flex; flex-direction: column; gap: 6px; }
     .item-row {
@@ -53,7 +53,7 @@
     }
     .add-item-form input[type="text"] { flex: 1; padding: 9px; font-size: var(--text-sm); }
   </style>
-  <script src="/config.js"></script>
+  <script src="../../config.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
@@ -66,7 +66,7 @@
         <div class="clients-page" x-data="checklistsPage()" x-init="init()" x-cloak>
 
           <div style="margin-bottom: var(--space-md)">
-            <a href="/panel/services/" style="color: var(--color-text-muted); font-size: var(--text-sm); text-decoration: none; display: inline-flex; align-items: center; gap: 4px">
+            <a href="./" style="color: var(--color-text-muted); font-size: var(--text-sm); text-decoration: none; display: inline-flex; align-items: center; gap: 4px">
               <i data-lucide="chevron-left" style="width:14px;height:14px"></i> Back to Services Catalog
             </a>
           </div>
@@ -288,7 +288,7 @@
   </div>
 
   <script type="module">
-    import { iniciarPanel } from '/panel/js/panel-shell.js';
+    import { iniciarPanel } from '../js/panel-shell.js';
     import {
       listarPlantillas, obtenerPlantilla, crearPlantilla, actualizarPlantilla,
       togglePlantillaActiva, guardarItemsPlantilla, listarServiciosParaSelect,

@@ -1,7 +1,7 @@
 // panel/services/js/checklists-api.js
 // CRUD de plantillas de checklist y sus items.
 
-import { supabase } from '/js/supabase-client.js';
+import { supabase } from '../../../js/supabase-client.js';
 
 // ─── PLANTILLAS ──────────────────────────────────────
 

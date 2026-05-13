@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sign In · AK Cleaning & Management</title>
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <script src="/config.js"></script>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <script src="config.js"></script>
 
 </head>
 <body>
@@ -94,8 +94,8 @@
   </div>
 
   <script type="module">
-    import { iniciarSesion, recuperarPassword, obtenerSesionActual } from '/js/auth.js';
-    import { redirigirSegunRol } from '/js/router.js';
+    import { iniciarSesion, recuperarPassword, obtenerSesionActual } from 'js/auth.js';
+    import { redirigirSegunRol } from 'js/router.js';
 
     // 1. Definir window.loginForm de forma síncrona ANTES de importar Alpine.
     //    Alpine busca esta función cuando evalúa x-data="loginForm()".

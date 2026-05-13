@@ -1,7 +1,7 @@
 // panel/services/js/services-api.js
 // Funciones de acceso a Supabase para el catálogo de servicios.
 
-import { supabase } from '/js/supabase-client.js';
+import { supabase } from '../../../js/supabase-client.js';
 
 // ─── CONSTANTES ──────────────────────────────────────
 

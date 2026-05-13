@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Users — AK Cleaning</title>
-  <link rel="stylesheet" href="/css/base.css" />
-  <link rel="stylesheet" href="/css/components.css" />
-  <link rel="stylesheet" href="/panel/css/panel.css" />
-  <link rel="stylesheet" href="/panel/clients/css/clients.css" />
+  <link rel="stylesheet" href="../../css/base.css" />
+  <link rel="stylesheet" href="../../css/components.css" />
+  <link rel="stylesheet" href="../css/panel.css" />
+  <link rel="stylesheet" href="../clients/css/clients.css" />
   <style>
     .user-avatar {
       width: 32px; height: 32px; border-radius: 50%;
@@ -134,7 +134,7 @@
     </div>
 
     <p class="text-muted text-sm" style="margin-top:var(--space-md);text-align:center">
-      To add new staff members, use the <a href="/panel/staff/" class="text-accent">Staff</a> module.
+      To add new staff members, use the <a href="../staff/" class="text-accent">Staff</a> module.
     </p>
 
   </div>
@@ -143,8 +143,8 @@
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
 <script type="module">
-  import { iniciarPanel }     from '/panel/js/panel-shell.js';
-  import { supabase }         from '/js/supabase-client.js';
+  import { iniciarPanel }     from '../js/panel-shell.js';
+  import { supabase }         from '../../js/supabase-client.js';
 
   window.usersPage = function () {
     return {

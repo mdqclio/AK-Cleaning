@@ -4,21 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AK Cleaning & Management</title>
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <script src="/config.js"></script>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <script src="config.js"></script>
 </head>
 <body>
   <div class="welcome">
     <div class="brand-circle">AK</div>
     <h1>AK Cleaning & Management</h1>
     <p>Internal management system</p>
-    <a href="/login.html" class="btn btn-primary btn-lg">Sign In</a>
+    <a href="login.html" class="btn btn-primary btn-lg">Sign In</a>
   </div>
 
   <script type="module">
-    import { obtenerSesionActual } from '/js/auth.js';
-    import { redirigirSegunRol } from '/js/router.js';
+    import { obtenerSesionActual } from 'js/auth.js';
+    import { redirigirSegunRol } from 'js/router.js';
 
     // Si ya hay sesión, redirigir al panel del rol
     const sesion = await obtenerSesionActual();

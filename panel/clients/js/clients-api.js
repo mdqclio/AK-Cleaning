@@ -1,7 +1,7 @@
 // panel/clients/js/clients-api.js
 // Funciones de acceso a Supabase para el módulo de Clients.
 
-import { supabase } from '/js/supabase-client.js';
+import { supabase } from '../../../js/supabase-client.js';
 
 /**
  * Lista clientes con filtros y paginación.

@@ -2,8 +2,8 @@
 // Inicializa el shell del panel: protege ruta, arma sidebar y header,
 // inyecta sesión del usuario y maneja logout.
 
-import { protegerRuta } from '/js/router.js';
-import { cerrarSesion } from '/js/auth.js';
+import { protegerRuta } from '../../js/router.js';
+import { cerrarSesion } from '../../js/auth.js';
 import { menuParaRol } from './panel-config.js';
 
 /**
