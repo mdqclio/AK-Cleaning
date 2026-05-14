@@ -1,5 +1,46 @@
 # Estado actual del sistema
 
+## Sesión 13 May 2026 — GitHub Pages live + Andy + 17 empleadas + bug fixes
+
+### GitHub Pages — LIVE ✅
+- URL pública: `https://mdqclio.github.io/AK-Cleaning/`
+- Activado desde GitHub Settings → Pages → branch `main` / root.
+- Andy probando el sistema en vivo desde esta URL.
+
+### Fixes de rutas para GitHub Pages (commits `dc98459`, `6c52679`)
+- Convertí todas las rutas absolutas (`/css/...`, `/js/...`) a relativas en 34 archivos.
+- Agregué `APP_CONFIG.basePath` dinámico en `config.js` para detectar si corre en GH Pages o localhost.
+- Segundo fix: prefijo `./` faltante en module imports (`login.html`, `index.html`, `panel/staff/index.html`).
+
+### Bug crítico Supabase Auth — RESUELTO ⚠️ SQL FUERA DE MIGRATION
+- El trigger `fn_handle_new_user` fallaba con "Database error creating new user".
+- Causa: faltaba `SET search_path = public` → no encontraba `es_superadmin()` ni `get_user_rol()` al evaluar RLS.
+- Fix aplicado manualmente desde Supabase Dashboard SQL Editor. **NO quedó como migration en el repo.**
+- Acción pendiente: crear `migrations/005_fix_handle_new_user_search_path.sql` en próxima sesión para que el fix sea reproducible si se clona el schema o se restaura en otro proyecto.
+
+### Andy en el sistema ✅
+- auth_id: `c05c7698-a9da-4070-bf6a-79addf863bcc`
+- email: `andy.flo@hotmail.com` (con punto — corrección de sesión anterior que tenía `andyflo`)
+- rol: `owner`, nombre: Andrea, apellido: Manca
+- Commit `66a709b`: corregí el email en `config.js`, `docs/ROADMAP.md` y `panel/invoices/index.html`.
+
+### MCP Supabase
+- Cambiado de `--read-only` a write-enabled (permite UPDATE/INSERT/DELETE/migrations desde Claude).
+
+### 17 empleadas cargadas ✅
+- 16 nuevas filas en `usuarios` (rol `empleada`, `auth_id = NULL`) + 16 filas en `empleadas`.
+- Andrea Manca (ya existía en `usuarios`) agregada también a `empleadas` → total 17 en `empleadas`.
+- Emails placeholder: `nombre.apellido@pending.local` — Andy puede editar por UI o SQL.
+- Sin login todavía: las cuentas Supabase Auth se crean cuando hagamos Block L (PWA Empleada).
+
+### Datos de prueba pendientes de limpiar
+- 3 facturas en estado `borrador` sin número, generadas durante desarrollo de Block J Etapa 1.
+- 4 líneas asociadas en `factura_lineas` ligadas a esos drafts.
+- Counter `factura_counter.proximo_numero` sigue en 1001 (intacto, no se consumió número).
+- Decisión: dejarlas para que Andy entienda el flujo de drafts; si confunde, borrar en próxima sesión con MCP.
+
+---
+
 ## Sesión 11 May 2026 — Block J Etapas 1 y 2
 
 ### Etapa 1: DONE (commit `8f0db13`) ✅ VALIDADO en Brave
@@ -116,7 +157,9 @@ Commits del Bloque I (referencia):
 - 14 servicios en catálogo [VERIFICAR EN SUPABASE]
 - 1 plantilla de checklist (Standard Cleaning) [VERIFICAR]
 - OS #1 con checklist aplicado
-- 0 empleadas, 0 proveedores, 0 edificios reales
+- **17 empleadas** (Andrea Manca + 16 nuevas) en `usuarios` + `empleadas` — sin auth_id
+- 3 facturas draft de prueba (sin número) + 4 líneas en `factura_lineas`
+- 0 proveedores, 0 edificios reales
 
 ## Pendientes de carga real
 Leonardo decidió **NO cargar datos de prueba más**. Plan: hacer entrar a Andy a cargar sus datos reales y depurar con feedback de uso real.

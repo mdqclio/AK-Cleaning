@@ -7,7 +7,7 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 - **Frontend**: HTML vanilla + Alpine.js (CDN ESM, sin build step) + Lucide icons (CDN)
 - **Backend**: Supabase (Postgres + Auth + RLS + Storage)
 - **Hosting local**: `python3 -m http.server 8000` desde raíz del proyecto
-- **Hosting prod (futuro)**: GitHub Pages
+- **Hosting prod**: GitHub Pages (LIVE: `https://mdqclio.github.io/AK-Cleaning/`)
 - **Idioma**: UI en inglés, código y comentarios en español rioplatense
 
 ## Paths
@@ -20,6 +20,7 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 - **IMPORTANTE**: usar la *legacy JWT anon key* (Settings → API → tab "Legacy anon, service_role API keys"). La nueva `sb_publishable_*` NO funciona con REST.
 - anon_key está en `config.js` — no repetir acá.
 - Leonardo auth_id: `606bb223-93f8-438a-9e10-95aafab27fbf` (rol superadmin)
+- Andy auth_id: `c05c7698-a9da-4070-bf6a-79addf863bcc` (rol owner, email `andy.flo@hotmail.com`)
 - Andrea cliente_id: `15279744-5b1c-4afd-9dcb-bf8747c21d47` (cliente de prueba con propiedad "alfonsina")
 - Timezone: `America/New_York` (Miami DST) en TIMESTAMPTZ
 
@@ -59,14 +60,18 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 5. **Status 300 + disk cache en Network tab** → tickear "Disable cache" en DevTools.
 6. **Chrome consola bloquea paste** → tipear `allow pasting` + Enter primero.
 7. **`cat > heredoc` por copy-paste** corrompe archivos JS/CSS con wrapper HTML. Usar siempre la herramienta `Write` directamente o GitHub web → `git pull`.
-8. **`<input type="date">` no muestra valor inicial en Alpine** → el browser no refleja el value aunque Alpine lo tenga correcto en `formData`. Fix: usar `:value` con binding explícito y `@change` en vez de `x-model`, o bien usar `x-effect` para forzar el valor. Workaround manual: el usuario puede tipear la fecha. Pendiente aplicar fix en modal de invoices en Etapa 2.
+8. **`<input type="date">` no muestra valor inicial en Alpine** → el browser no refleja el value aunque Alpine lo tenga correcto en `formData`. Fix: usar `:value` con binding explícito y `@change` en vez de `x-model`, o bien usar `x-effect` para forzar el valor. Workaround manual: el usuario puede tipear la fecha. Fix aplicado en Etapa 2 de Invoices.
+9. **GitHub Pages no soporta rutas absolutas** cuando el repo vive en subcarpeta (`/user/repo/`). Siempre usar rutas relativas (`../css/`, `./js/`). `APP_CONFIG.basePath` en `config.js` detecta el entorno dinámicamente.
+10. **Module imports JS requieren prefijo `./` o `../`** — el browser no acepta `js/auth.js` sin punto. Browsers son estrictos con esto; Node.js es más permisivo. Siempre usar `./js/auth.js`.
+11. **`SECURITY DEFINER` functions necesitan `SET search_path = public`** si referencian funciones del mismo schema. Sin esto, el search_path al evaluar RLS no incluye `public` y las funciones helper no se encuentran → "Database error" al intentar hacer signup. Aplica a `fn_handle_new_user` y cualquier trigger SECURITY DEFINER similar.
+12. **MCP Supabase con `--read-only`** bloquea UPDATE/INSERT/DELETE y también `apply_migration`. Para poder escribir desde Claude, sacar el flag `--read-only` de la configuración MCP.
 
 ## Estado actual
 - ✅ Bloque A: Auth + Login + Migration 002 (superadmin)
 - ✅ Bloque B: Panel shell, sidebar con secciones, dashboard con métricas
 - ✅ Bloque C: Clients (búsqueda incluye contactos)
 - ✅ Bloque D: Properties + Buildings (sin datos reales)
-- ✅ Bloque E: Staff (sin datos reales, signup + email invitación)
+- ✅ Bloque E: Staff (17 empleadas cargadas vía SQL, sin auth_id aún — cuentas se crean en Block L)
 - ✅ Bloque F: Providers (sin datos reales)
 - ✅ Bloque G: Services Catalog (14 servicios precargados [VERIFICAR EN SUPABASE])
 - ✅ Bloque H: Service Orders (validado con OS #1) — commit estable: `d4f91c6`
