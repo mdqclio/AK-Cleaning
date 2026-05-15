@@ -75,10 +75,14 @@
 - `fn_proteger_factura_emitida` actualizada: cubre todos los campos nuevos
 - `descripcion_general` y `periodo_servicio`: se mantienen sin uso (retrocompatibilidad)
 
+**Bugs encontrados y corregidos en validación (15 May 2026):**
+1. `facturas_estado_check` no incluía 'generada' — fix manual vía SQL Editor (DROP + ADD CONSTRAINT).
+2. `siguiente_numero_factura()` y `devolver_numero_factura()` eran SECURITY INVOKER sobre `factura_counter` (RLS habilitado, sin policies) → RPC retornaba null para usuarios autenticados → error "Could not assign invoice number". Fix: ambas funciones rehechas como SECURITY DEFINER + SET search_path = public. Fix proactivo también aplicado a `siguiente_numero_nota_credito()` (mismo patrón).
+
 **Etapa 1 ✅ VALIDADA** (commit `8f0db13`)
 Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total Due en vivo.
 
-**Etapa 2 ✅ CODEADA + actualizada a schema v2** (comit original `02ae9c5`, actualizado en `e448235`)
+**Etapa 2 ✅ CODEADA + actualizada a schema v2** (commit original `02ae9c5`, actualizado en `e448235`)
 - Generate Final: `generarNumero()` (sin snapshot — bill_to ya en draft), PDF html2pdf.js, Storage, preview modal
 - Void Invoice: solo estado='generada', confirm con número
 - Delete draft: desde tabla y desde modal footer, confirm en español
@@ -86,7 +90,7 @@ Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total 
 - Propiedad: dropdown vinculado a cliente, auto-fill for_property_unit
 - FOR estructurado: for_property_unit, for_service_period, for_description (→ columnas propias)
 - Rollback si falla Generate: devolver_numero + revertir a borrador
-- **Pendiente validación en Mac**
+- **Listo para validar en Mac** (bugs de DB corregidos)
 
 **Fases 3 y 4 — pendientes (Fase 4 se hace con Leonardo)**
 - Fase 3 (pendiente): selección de OS no facturadas, auto-populate líneas desde `os_servicios`

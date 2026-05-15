@@ -65,6 +65,7 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 10. **Module imports JS requieren prefijo `./` o `../`** — el browser no acepta `js/auth.js` sin punto. Browsers son estrictos con esto; Node.js es más permisivo. Siempre usar `./js/auth.js`.
 11. **`SECURITY DEFINER` functions necesitan `SET search_path = public`** si referencian funciones del mismo schema. Sin esto, el search_path al evaluar RLS no incluye `public` y las funciones helper no se encuentran → "Database error" al intentar hacer signup. Aplica a `fn_handle_new_user` y cualquier trigger SECURITY DEFINER similar.
 12. **MCP Supabase con `--read-only`** bloquea UPDATE/INSERT/DELETE y también `apply_migration`. Para poder escribir desde Claude, sacar el flag `--read-only` de la configuración MCP.
+13. **Funciones que acceden a tablas con RLS habilitado y sin policies deben ser `SECURITY DEFINER`**. Ejemplo: `siguiente_numero_factura()` y `devolver_numero_factura()` acceden a `factura_counter` (RLS on, sin policies). Con SECURITY INVOKER, usuarios autenticados no tienen acceso → la función retorna null sin error visible → bug silencioso. Patrón correcto: `SECURITY DEFINER SET search_path = public`. Aplica a cualquier función que acceda a tablas-counter o tablas de configuración interna.
 
 ## Estado actual
 - ✅ Bloque A: Auth + Login + Migration 002 (superadmin)
@@ -76,7 +77,7 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 - ✅ Bloque G: Services Catalog (14 servicios precargados [VERIFICAR EN SUPABASE])
 - ✅ Bloque H: Service Orders (validado con OS #1) — commit estable: `d4f91c6`
 - ✅ Bloque I: Checklist Templates + Checklist en OS (3 etapas incrementales)
-- 🔄 Bloque J: Invoicing — Etapa 1 ✅ VALIDADA (`8f0db13`) · Etapa 2 ✅ CODEADA sin validar (`02ae9c5`) · Etapas 3-4 pendientes
+- 🔄 Bloque J: Invoicing — Etapa 1 ✅ VALIDADA · Etapa 2 ✅ CODEADA (schema v2, `e448235`) · Fase 4 pendiente con Leonardo
 - ⏸ Bloques K-O: Field Reports, PWA Empleada, PWA Proveedor, Compras, Settings
 
 ## Sidebar real del panel

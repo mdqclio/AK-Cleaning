@@ -2,7 +2,7 @@
 
 ## Prioridad alta
 
-### 1. Validar Block J (schema v2) en Mac
+### 1. Re-validar Block J (schema v2) en Mac — bugs DB corregidos
 
 Después de `git pull` en Mac, usando Chrome:
 
@@ -87,6 +87,9 @@ Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cu
 | Block J Etapa 2 codeada | ✅ 11 May | commit `02ae9c5` |
 | Block J Fases 1-2-3 (schema v2 + bill_to + FOR + propiedad) | ✅ 15 May | commits `ea7d915` `e448235` + migración MCP |
 | Limpiar drafts de prueba (4 drafts Andrea Manca) | ✅ 15 May | DELETE vía MCP SQL |
+| Bug: `facturas_estado_check` faltaba 'generada' | ✅ 15 May | Fix manual SQL Editor por Leonardo |
+| Bug: `siguiente_numero_factura/devolver_numero_factura` SECURITY INVOKER en tabla con RLS | ✅ 15 May | Fix migración MCP → SECURITY DEFINER |
+| Fix proactivo: `siguiente_numero_nota_credito` mismo patrón | ✅ 15 May | Fix migración MCP → SECURITY DEFINER |
 | GitHub Pages live | ✅ 13 May | commit `dc98459` `6c52679` |
 | Fix rutas absolutas → relativas (34 archivos) | ✅ 13 May | commit `dc98459` `6c52679` |
 | Bug fn_handle_new_user search_path | ✅ 13 May | SQL manual (sin migration) |

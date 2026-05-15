@@ -182,31 +182,36 @@
 
 ### `facturas` ✅ EXISTE EN SUPABASE
 - `id uuid PK`
-- `numero integer NULLABLE` (NULL en drafts, asignado en Generate Final)
+- `numero integer NULLABLE` (NULL en drafts, asignado en Generate Final) — UNIQUE
 - `cliente_id uuid NOT NULL FK`
-- `idempotency_key uuid` (auto-generado por trigger)
+- `idempotency_key uuid` (auto-generado por trigger) — UNIQUE
 - `fecha date NOT NULL` (default CURRENT_DATE) — **NO** `fecha_emision`
-- `periodo_servicio text`
-- `descripcion_general text`
+- `periodo_servicio text` *(conservado, ya no se usa — reemplazado por `for_service_period`)*
+- `descripcion_general text` *(conservado, ya no se usa — reemplazado por campos FOR)*
 - `subtotal numeric NOT NULL` (default 0)
 - `descuento_total numeric NOT NULL` (default 0)
 - `tax_total numeric NOT NULL` (default 0)
 - `total_due numeric NOT NULL` (default 0) — **NO** `total`
-- `estado text NOT NULL` ('borrador'|'generada'|'enviada'|'pagada'|'anulada'), default 'borrador'
+- `estado text NOT NULL` CHECK in ('borrador','generada','enviada','pagada','anulada'), default 'borrador'
 - `pdf_url text`
 - `enviada_en timestamptz`, `enviada_a text` — **NO** `enviada_a_email`
 - `notas text`
 - `version integer NOT NULL` (default 1, manejado por trigger)
-- `creado_por uuid`
-- `creado_en timestamptz NOT NULL`
-- Snapshot bill_to (7 columnas, agregadas 11 May 2026):
-  - `bill_to_name_snapshot text`
-  - `bill_to_email_snapshot text`
-  - `bill_to_address_1_snapshot text`
-  - `bill_to_address_2_snapshot text`
-  - `bill_to_city_snapshot text`
-  - `bill_to_state_snapshot text`
-  - `bill_to_zip_snapshot text`
+- `creado_por uuid`, `actualizado_por uuid`
+- `creado_en timestamptz NOT NULL`, `actualizado_en timestamptz NOT NULL`
+- Bill To persistente (editables en draft, 7 columnas — renombradas desde `_snapshot` el 15 May 2026):
+  - `bill_to_name text`
+  - `bill_to_email text`
+  - `bill_to_address_1 text`
+  - `bill_to_address_2 text`
+  - `bill_to_city text`
+  - `bill_to_state text`
+  - `bill_to_zip text`
+- `propiedad_id uuid FK NULLABLE` → `propiedades(id)` ON DELETE SET NULL *(agregado 15 May 2026)*
+- FOR estructurado *(agregados 15 May 2026)*:
+  - `for_property_unit text`
+  - `for_service_period text`
+  - `for_description text`
 
 ### `factura_lineas` ✅ EXISTE EN SUPABASE
 - `id uuid PK`, `factura_id uuid NOT NULL FK`
@@ -247,9 +252,11 @@
 
 | Función | Retorna | Descripción |
 |---|---|---|
-| `siguiente_numero_factura()` | `integer` | FOR UPDATE atómico sobre `factura_counter.proximo_numero`. Counter actual: **1001**. |
-| `devolver_numero_factura(p_numero integer)` | `boolean` | Rollback seguro: decrementa solo si `proximo_numero = p_numero + 1`. Devuelve `true` si decrementó, `false` si hubo concurrencia (acepta el hueco). |
-| `siguiente_numero_nota_credito()` | `integer` | Idem para notas de crédito. |
+| `siguiente_numero_factura()` | `integer` | FOR UPDATE atómico sobre `factura_counter.proximo_numero`. Counter actual: **1001**. **SECURITY DEFINER** (fix 15 May — `factura_counter` tiene RLS sin policies, INVOKER fallaba para usuarios autenticados). |
+| `devolver_numero_factura(p_numero integer)` | `boolean` | Rollback seguro: decrementa solo si `proximo_numero = p_numero + 1`. Devuelve `true` si decrementó, `false` si hubo concurrencia. **SECURITY DEFINER** (mismo fix). |
+| `siguiente_numero_nota_credito()` | `integer` | Idem para notas de crédito (sobre `nota_credito_counter`). **SECURITY DEFINER** (fix proactivo 15 May — mismo patrón). |
+
+> **Regla**: cualquier función que acceda a una tabla con RLS habilitado y sin policies para usuarios autenticados DEBE ser `SECURITY DEFINER SET search_path = public`. Los counters (`factura_counter`, `nota_credito_counter`) son el caso típico.
 
 ### Triggers confirmados
 
@@ -267,11 +274,13 @@
 
 Bloquea si `OLD.estado IN ('enviada', 'pagada')` y se intenta cambiar alguno de:
 - `numero`, `cliente_id`, `subtotal`, `total_due`, `fecha`
+- `bill_to_name`, `bill_to_email`, `bill_to_address_1`, `bill_to_address_2`, `bill_to_city`, `bill_to_state`, `bill_to_zip`
+- `for_property_unit`, `for_service_period`, `for_description`
 
 Error: `'Cannot modify critical fields on a sent/paid invoice. Use a credit note instead.'`
 
 **Campos que SÍ se pueden editar en facturas enviadas/pagadas:**
-`estado`, `notas`, `enviada_en`, `enviada_a`, `pdf_url`, `tax_total`, `descuento_total`, `periodo_servicio`, `descripcion_general`
+`estado`, `notas`, `enviada_en`, `enviada_a`, `pdf_url`, `tax_total`, `descuento_total`, `periodo_servicio`, `descripcion_general`, `propiedad_id`
 
 ### `fn_audit_log()`
 
