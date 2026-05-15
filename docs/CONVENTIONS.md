@@ -47,7 +47,7 @@ ak-system/
 │   │   └── js/
 │   │       ├── orders-api.js
 │   │       └── orders-helpers.js
-│   ├── invoices/          # vacío, Bloque J pendiente
+│   ├── invoices/          # Bloque J Etapas 1-2 codeadas (index.html, css/, js/)
 │   ├── payments/          # vacío, futuro
 │   ├── reports/           # vacío, Bloque K pendiente
 │   ├── purchasing/        # vacío, Bloque N pendiente

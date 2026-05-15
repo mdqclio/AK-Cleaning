@@ -1,182 +1,125 @@
 # Estado actual del sistema
 
-## Sesión 13 May 2026 — GitHub Pages live + Andy + 17 empleadas + bug fixes
-
-### GitHub Pages — LIVE ✅
-- URL pública: `https://mdqclio.github.io/AK-Cleaning/`
-- Activado desde GitHub Settings → Pages → branch `main` / root.
-- Andy probando el sistema en vivo desde esta URL.
-
-### Fixes de rutas para GitHub Pages (commits `dc98459`, `6c52679`)
-- Convertí todas las rutas absolutas (`/css/...`, `/js/...`) a relativas en 34 archivos.
-- Agregué `APP_CONFIG.basePath` dinámico en `config.js` para detectar si corre en GH Pages o localhost.
-- Segundo fix: prefijo `./` faltante en module imports (`login.html`, `index.html`, `panel/staff/index.html`).
-
-### Bug crítico Supabase Auth — RESUELTO ⚠️ SQL FUERA DE MIGRATION
-- El trigger `fn_handle_new_user` fallaba con "Database error creating new user".
-- Causa: faltaba `SET search_path = public` → no encontraba `es_superadmin()` ni `get_user_rol()` al evaluar RLS.
-- Fix aplicado manualmente desde Supabase Dashboard SQL Editor. **NO quedó como migration en el repo.**
-- Acción pendiente: crear `migrations/005_fix_handle_new_user_search_path.sql` en próxima sesión para que el fix sea reproducible si se clona el schema o se restaura en otro proyecto.
-
-### Andy en el sistema ✅
-- auth_id: `c05c7698-a9da-4070-bf6a-79addf863bcc`
-- email: `andy.flo@hotmail.com` (con punto — corrección de sesión anterior que tenía `andyflo`)
-- rol: `owner`, nombre: Andrea, apellido: Manca
-- Commit `66a709b`: corregí el email en `config.js`, `docs/ROADMAP.md` y `panel/invoices/index.html`.
-
-### MCP Supabase
-- Cambiado de `--read-only` a write-enabled (permite UPDATE/INSERT/DELETE/migrations desde Claude).
-
-### 17 empleadas cargadas ✅
-- 16 nuevas filas en `usuarios` (rol `empleada`, `auth_id = NULL`) + 16 filas en `empleadas`.
-- Andrea Manca (ya existía en `usuarios`) agregada también a `empleadas` → total 17 en `empleadas`.
-- Emails placeholder: `nombre.apellido@pending.local` — Andy puede editar por UI o SQL.
-- Sin login todavía: las cuentas Supabase Auth se crean cuando hagamos Block L (PWA Empleada).
-
-### Datos de prueba pendientes de limpiar
-- 3 facturas en estado `borrador` sin número, generadas durante desarrollo de Block J Etapa 1.
-- 4 líneas asociadas en `factura_lineas` ligadas a esos drafts.
-- Counter `factura_counter.proximo_numero` sigue en 1001 (intacto, no se consumió número).
-- Decisión: dejarlas para que Andy entienda el flujo de drafts; si confunde, borrar en próxima sesión con MCP.
+**HEAD:** `2d38100` — 13 May 2026
+**Branch:** main
+**Live:** https://mdqclio.github.io/AK-Cleaning/
+**Codespace:** cuddly-spork (`/workspaces/AK-Cleaning`)
 
 ---
 
-## Sesión 11 May 2026 — Block J Etapas 1 y 2
+## Módulos en código
 
-### Etapa 1: DONE (commit `8f0db13`) ✅ VALIDADO en Brave
-- `panel/invoices/index.html`, `css/invoices.css`, `js/invoices-api.js`
-- Funciones API: listarFacturas, obtenerFactura, crearFactura, actualizarFactura, eliminarFactura, listarClientesActivos, traducirError
-- Validación manual: crear → editar (add line) → eliminar → todo OK
+### A — Auth + Login ✅
+- `login.html` con Alpine factory `window.loginForm` registrada antes de `Alpine.start()`
+- Protección de rutas en `panel/js/panel-shell.js` → `iniciarPanel({ rolesPermitidos, itemActivo, tituloHeader })`
+- Migrations `001_initial_schema.sql` + `002_add_superadmin.sql` aplicados en Supabase (no están en repo como archivos)
+- Gotcha documentado: `fn_handle_new_user` necesita `SET search_path = public` (ver nota SQL abajo)
 
-### Etapa 2: CODEADA (commit `02ae9c5`) ⚠️ SIN VALIDAR EN MAC
-- Generate Final: número correlativo, snapshot bill_to, PDF con html2pdf.js, Storage upload, preview iframe
-- Void Invoice, Download PDF en tabla y modal
-- Fix del bug `<input type="date">` (`:value` + `@change` en vez de `x-model`)
-- Rollback completo si falla post-numeración: `devolver_numero_factura()` + revertir a borrador
-- **Ver `docs/PENDIENTES.md` para el checklist de validación**
-
-### Schema introspección: DONE
-- Correcciones críticas documentadas en `SCHEMA.md` (columnas reales vs. supuestas)
-- Funciones SQL y triggers verificados y documentados
-
-### Logo: DONE
-- `assets/ak-logo.png` en repo (commit `e3e8f46`). 400x400px, fondo negro circular
-
-### Setup Supabase Etapa 2: DONE
-- Función `devolver_numero_factura(p_numero integer)` creada
-- Bucket Storage `facturas` público, 4 policies RLS
-- 7 columnas `bill_to_*_snapshot` en tabla facturas
-
----
-
-## Commit estable de referencia
-`8f0db13` — Block J Etapa 1 validado (Invoices drafts ABM completo).
-
-## Commit actual `main`
-`02ae9c5` — Block J Etapa 2 codeada (Generate Final + PDF + Storage). Pendiente validación en Mac.
-
-Commits del Bloque J:
-- `02ae9c5` Block J Etapa 2: Generate Final + PDF + Storage ⚠️ SIN VALIDAR
-- `8f0db13` Block J Etapa 1: Invoices drafts ABM ✅ VALIDADO en Brave
-
-Commits del Bloque I (referencia):
-- `5ed858e` Bloque I etapa 3.3: validación de obligatorios al completar OS
-
-## Bloques completados
-
-### A — Auth, Login, Router
-- Login en `login.html` con Alpine factory `window.loginForm` registrada antes de `Alpine.start()`
-- Protección de rutas en `panel/js/panel-shell.js → iniciarPanel({rolesPermitidos, itemActivo, tituloHeader})`
-- Migrations `001_initial_schema.sql` + `002_add_superadmin.sql` aplicados en Supabase
-- **Faltante**: el SQL completo de ambos migrations no está en el repo, solo aplicados en Supabase. Exportar desde Supabase Dashboard o con `pg_dump --schema-only`.
-
-### B — Panel Shell
-- Sidebar con secciones: Overview, Operations, Records, Finance, Setup, System (System solo visible a `superadmin`)
+### B — Panel Shell ✅
+- Sidebar con secciones: Overview, Operations, Records, Finance, Setup, System
+- System visible solo a `superadmin`
 - Dashboard con métricas reales (count exact head:true) para clientes, propiedades, empleadas activas
-- Welcome con `usuario.nombre`, rol debajo del avatar
-- Archivo: `panel/js/panel-shell.js` (renderSidebar + renderHeader + logout + mobile menu)
+- `panel/js/panel-shell.js` + `panel/js/panel-config.js`
 
-### C — Clients
-- Tipo: Individual / Business / Trust / LLC
-- Bill To opcional (toggle)
-- Contactos múltiples por cliente (`cliente_contactos`) con flags: primary, receives_invoices, receives_reports
-- Búsqueda extendida: busca también en contactos vía OR con IDs precalculados
-- Soft delete (toggle Active/Inactive en modal)
-- Test data: **Andrea Manca** id `15279744-5b1c-4afd-9dcb-bf8747c21d47`, con contactos Kevin (hijo) y Leonardo (amigo)
+### C — Clients ✅
+- Individual / Business / Trust / LLC
+- Bill To con toggle
+- Contactos múltiples (`cliente_contactos`): primary, receives_invoices, receives_reports
+- Búsqueda extendida: busca en nombre + contactos vía OR
+- Soft delete (toggle Active/Inactive)
 
-### D — Properties + Buildings
-- Modal con 2 modos: dentro de un edificio (con unidad) o standalone (dirección manual)
-- Modal aparte para gestionar edificios (Manage Buildings)
-- Sección "Access Information" destacada (codigo, porteria, llave)
+### D — Properties + Buildings ✅ (código listo, sin datos reales)
+- Dos modos: dentro de edificio (con unidad) o standalone (dirección manual)
+- Modal separado para gestionar edificios
+- Sección Access Information (código, portería, llave)
 - Filtros: cliente, edificio, tipo, estado
-- **No testeado con datos reales todavía**. Andrea tiene propiedad "alfonsina"
+- `panel/properties/index.html` + `panel/properties/index1.html` (variante, verificar cuál es la activa)
 
-### E — Staff (Empleadas)
-- Flujo: signUp Auth → insert `usuarios` (rol='empleada') → insert `empleadas` → email password reset
-- Email no editable post-creación (PK)
-- Service types como chips; Contract type W2/1099
-- **No testeado**: Leonardo no creó empleadas todavía
+### E — Staff ✅ (código listo, 17 empleadas cargadas sin auth)
+- Flujo create: signUp Auth → insert `usuarios` (rol='empleada') → insert `empleadas`
+- Contract type W2/1099; service types como chips
+- **17 empleadas cargadas en DB**: Andrea Manca + 16 nuevas, emails placeholder `@pending.local`, `auth_id = NULL`
+- Cuentas Supabase Auth se crean cuando hagamos Block L
 
-### F — Providers
-- Con/sin app access (toggle); Tax compliance (W9, 1099); Rating estrellas; Rubros como chips
-- **No testeado** con datos reales
+### F — Providers ✅ (código listo, sin datos reales)
+- Con/sin app access; Tax compliance (W9/1099); Rating estrellas; Rubros como chips
 
-### G — Services Catalog
-- Vista cards; `servicios` + `servicio_tarifas` con vigencias (fechas desde/hasta)
-- 14 servicios precargados [VERIFICAR EN SUPABASE qué son exactamente]
-- Categorías, taxable flag, requires_external_provider
+### G — Services Catalog ✅
+- Cards de servicios; `servicios` + `servicio_tarifas` con vigencias
+- Precargados en Supabase (cantidad y detalle exacto: verificar en Supabase Dashboard)
 
 ### H — Service Orders ✅ VALIDADO
 - Tabs: Today / Upcoming / Past / All
-- Filtros: estado, cliente, búsqueda, asignado (post-filtrado en JS)
+- Filtros: estado, cliente, búsqueda, asignado (post-filtrado JS)
 - Servicios múltiples + asignaciones múltiples (XOR staff/provider via `chk_asignado_xor`)
 - Estados: borrador → confirmada → en_curso → completada / cancelada
-- Optimistic locking via `version` field
-- Audit trail (creado_por, actualizado_por, creado_en, actualizado_en)
-- Numero auto-correlativo; Timezone Miami para `programada_en` (TIMESTAMPTZ)
-- Helpers: `datetimeLocalToISO` / `isoToDatetimeLocal` en `orders-helpers.js`
-- **Test exitoso**: OS #1 para Andrea + propiedad alfonsina + servicio + asignación opcional
+- Optimistic locking via `version`; audit trail completo
+- `panel/orders/index.html` + `js/orders-api.js` + `js/orders-helpers.js`
 
 ### I — Checklist Templates + Checklist en OS ✅ VALIDADO
-- **Etapa 1**: ABM plantillas (`panel/services/checklists.html`)
-  - Nombre, idioma (en/es), servicio asociado opcional, items ordenados con flag mandatory
-  - Reorder con flechas, soft delete
-  - **Bug resuelto**: ambigüedad FK plantillas↔servicios → especificar `servicios!plantillas_checklist_servicio_id_fkey`
-- **Etapa 2**: Sección Checklist en modal de OS
-  - Apply template (replace mode), marcar items completados (timestamp + completado_por)
-- **Etapa 3.1**: Botón eliminar item
-- **Etapa 3.2**: Agregar items manuales
-- **Etapa 3.3**: Validación de mandatory pendientes al pasar OS a "completada"
-  - Bloquea si hay obligatorios sin completar
-  - Override admin con prompt de motivo → se registra en `notas_internas` con timestamp
-- **Bug histórico**: La primera implementación causaba crash de navegador (loop Alpine). Resuelto haciendo etapas incrementales con validación entre cada una.
+- `panel/services/checklists.html` — ABM plantillas: nombre, idioma, servicio opcional, items ordenados, flag mandatory
+- Sección Checklist en modal de OS: apply template, marcar items (timestamp + completado_por)
+- Items manuales; botón eliminar item
+- Validación mandatory al pasar OS a "completada"; override admin con motivo en notas_internas
 
-## Test data actual en Supabase
+### J — Invoicing (EN PROGRESO)
+**Archivos existentes:**
+- `panel/invoices/index.html` (994 líneas)
+- `panel/invoices/js/invoices-api.js` (286 líneas)
+- `panel/invoices/css/invoices.css` (220 líneas)
+
+**Etapa 1 ✅ VALIDADA** (commit `8f0db13`)
+Lista con tabs (Drafts/Generated/Sent/Paid/All), búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total Due en vivo.
+
+**Etapa 2 ✅ CODEADA — pendiente validación en Mac** (commit `02ae9c5`)
+- Generate Final: llama `siguiente_numero_factura()`, snapshot bill_to, genera PDF con html2pdf.js, sube a Storage, preview modal
+- Void Invoice (generada → anulada)
+- Download PDF en tabla y modal
+- Fix del bug `<input type="date">` (`:value` + `@change`)
+- Rollback si falla: `devolver_numero_factura()` + revertir a borrador
+
+**Etapas 3 y 4 — pendientes de diseño e implementación**
+- Etapa 3: selección de OS no facturadas, auto-populate líneas desde `os_servicios`
+- Etapa 4: Send to Client (SendGrid Edge Function) + registro de pagos
+
+### K–O — Pendientes de implementación
+- `panel/reports/index.html` — placeholder vacío (Bloque K: Field Reports)
+- `panel/purchasing/index.html` — placeholder vacío (Bloque N)
+- `panel/schedule/index.html` — placeholder vacío
+- `panel/payments/index.html` — placeholder vacío (Bloque J Etapa 4)
+- `panel/users/index.html` — placeholder vacío
+- `panel/system/` — 3 placeholders (logs, health, config) — solo superadmin
+- `app-empleada/` — vacío (Bloque L: PWA Empleada)
+- `app-proveedor/` — vacío (Bloque M: PWA Proveedor)
+
+---
+
+## Supabase — configuración activa
+
+- Project: `ccdpbiflbewhnidigiin`
+- Key: legacy JWT anon (en `config.js`)
+- MCP configurado en write-enabled (sin `--read-only`)
+- **Usuarios activos:**
+  - Leonardo (`606bb223`) — superadmin
+  - Andy Manca (`c05c7698`) — owner, `andy.flo@hotmail.com`
+  - Andrea (`15279744`) — cliente de prueba
+- **Bucket Storage:** `facturas` — público, sin restricción MIME, policies RLS activas
+
+## SQL fuera de migration (no está en repo)
+
+- **Fix `fn_handle_new_user`**: aplicado manualmente desde Dashboard. Agrega `SET search_path = public` al trigger. Pendiente formalizar como `migrations/005_fix_handle_new_user_search_path.sql`.
+- **Función `siguiente_numero_factura()`**: creada via MCP 11 May 2026.
+- **Función `devolver_numero_factura(p_numero integer)`**: creada via MCP 11 May 2026.
+- **17 empleadas**: insertadas via SQL en sesión 13 May 2026. Sin migration formal.
+
+## Test data en Supabase
+
 - 1 cliente (Andrea Manca) + 2 contactos (Kevin hijo, Leonardo amigo)
 - 1 propiedad (alfonsina) bajo Andrea
-- 14 servicios en catálogo [VERIFICAR EN SUPABASE]
-- 1 plantilla de checklist (Standard Cleaning) [VERIFICAR]
+- 14 servicios en catálogo (verificar detalle en Supabase)
+- 1 plantilla checklist (verificar en Supabase)
 - OS #1 con checklist aplicado
-- **17 empleadas** (Andrea Manca + 16 nuevas) en `usuarios` + `empleadas` — sin auth_id
-- 3 facturas draft de prueba (sin número) + 4 líneas en `factura_lineas`
-- 0 proveedores, 0 edificios reales
-
-## Pendientes de carga real
-Leonardo decidió **NO cargar datos de prueba más**. Plan: hacer entrar a Andy a cargar sus datos reales y depurar con feedback de uso real.
-
-## Block J — Invoicing EN PROGRESO
-
-### Etapa 1 ✅ VALIDADA (commit `8f0db13`)
-- Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total Due en vivo.
-
-### Etapa 2 ✅ CODEADA — pendiente validación en Mac (commit `02ae9c5`)
-- Generate Final: número correlativo via `siguiente_numero_factura()`, snapshot bill_to, PDF con html2pdf.js, upload a Storage, preview modal.
-- Void Invoice (generada → anulada).
-- Download PDF en tabla y modal.
-- Fix del bug date input (`:value` + `@change`).
-- Rollback completo si falla: `devolver_numero_factura()` + revertir a borrador.
-- **Checklist de validación en `docs/PENDIENTES.md`**
-
-### Etapas 3 y 4 — pendientes
-- Etapa 3: Selección de OS no facturadas (auto-populate líneas desde `os_servicios`)
-- Etapa 4: Send to Client + registro de pagos
+- 17 empleadas en `usuarios` + `empleadas`, sin auth_id, emails placeholder
+- 3 facturas draft de prueba (sin número) + 4 líneas en `factura_lineas` — dejar hasta que Andy confirme el flujo
+- `factura_counter.proximo_numero` = 1001 (no se consumió número)
+- 0 proveedores reales; 0 edificios reales

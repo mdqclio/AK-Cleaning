@@ -1,115 +1,103 @@
-# Pendientes — sesión 13 May 2026
+# Pendientes — 15 May 2026
 
-## Esperando feedback de Andy
+## Prioridad alta
 
-Andy está probando el sistema en vivo desde `https://mdqclio.github.io/AK-Cleaning/`.
-Arrancar próxima sesión revisando qué encontró.
+### 1. Validar Block J Etapa 2 en Mac
 
----
+Después de `git pull` en Mac, usando Chrome:
 
-## Prioridad alta — antes de continuar con Block J Etapa 3
-
-### 1. Validar Block J Etapa 2 en Mac (commit `02ae9c5`)
-
-Checklist de validación (correr después de `git pull` en la Mac, usando Chrome):
-
-1. Sidebar → Invoices → tab Drafts
+1. Login como Andy → Invoices → tab Drafts
 2. New Invoice → Andrea → Alfonsina / September 2025 → línea "Check out" $150 → Save Draft
-3. Click en la fila → **fecha debería mostrarse ahora** (fix del bug date input)
+3. Click en la fila → **la fecha debe mostrarse** (fix del bug date input)
 4. Botón **Generate Final** → confirm dialog → esperar ~3-5 seg
 5. Modal preview: header AK + #1001 + fecha / BILL TO Andrea / tabla / TOTAL DUE $150.00
-6. Click Download → se descarga el PDF
+6. Click Download → se descarga PDF
 7. Click Close → lista muestra #1001 con badge "Generated" e ícono download
 8. Refrescar → sigue en "Generated"
-9. En Supabase SQL Editor verificar:
+9. En Supabase Dashboard verificar:
    ```sql
    SELECT numero, estado, pdf_url, bill_to_name_snapshot FROM facturas;
    SELECT proximo_numero FROM factura_counter;  -- debe ser 1002
    ```
-10. En Supabase Storage → bucket `facturas` → carpeta `2026` → `1001.pdf` existe
+10. Storage → bucket `facturas` → carpeta `2026` → `1001.pdf` existe
+11. Probar Void Invoice también
 
-#### Posibles problemas a detectar
-- **Logo en PDF**: se precarga como base64 en `init()`. Si falla (CORS u otro), PDF se genera sin logo.
-- **iframe preview**: algunos browsers bloquean blob URLs en iframes. Fallback: botón Download.
-- **html2pdf en Brave**: puede bloquear CDN. Si Generate Final no hace nada, revisar consola. Usar Chrome primero.
-- **Upload Storage**: si PDF se genera pero no se sube, verificar policies del bucket en Dashboard.
-- **Void button**: probarlo también — cambia estado a `anulada`.
-
----
-
-### 2. Limpiar 3 drafts de prueba
-
-Ejecutar con MCP Supabase cuando Andy confirme que ya entendió el flujo:
-
-```sql
--- Ver primero
-SELECT id, estado, numero, total_due FROM facturas WHERE estado = 'borrador' AND numero IS NULL;
-
--- Borrar líneas y facturas
-DELETE FROM factura_lineas WHERE factura_id IN (
-  SELECT id FROM facturas WHERE estado = 'borrador' AND numero IS NULL
-);
-DELETE FROM facturas WHERE estado = 'borrador' AND numero IS NULL;
-
--- Verificar counter (debe seguir en 1001)
-SELECT proximo_numero FROM factura_counter;
-```
+**Posibles problemas:**
+- Logo en PDF: se precarga como base64 en `init()`. Si falla, PDF sale sin logo.
+- iframe preview: algunos browsers bloquean blob URLs. Fallback: botón Download.
+- html2pdf en Brave: puede bloquear CDN. Usar Chrome.
+- Upload Storage: si PDF se genera pero no sube, verificar policies del bucket.
 
 ---
 
-### 3. Formalizar fix de `fn_handle_new_user` como migration
+### 2. Formalizar fix de `fn_handle_new_user` como migration
 
-El fix `SET search_path = public` en el trigger fue aplicado manualmente desde Supabase Dashboard.
-No está en el repo. Crear:
+El fix `SET search_path = public` fue aplicado manualmente desde Supabase Dashboard. No está en repo. Crear:
 
 ```
 migrations/005_fix_handle_new_user_search_path.sql
 ```
 
-Con el `CREATE OR REPLACE FUNCTION fn_handle_new_user()` completo tal como quedó en producción.
-Crítico para reproducibilidad si se clona el schema o se restaura en otro proyecto.
+Con el `CREATE OR REPLACE FUNCTION fn_handle_new_user()` completo tal como quedó. Crítico para reproducibilidad.
 
 ---
 
-## Prioridad media — cuando Andy lo pida
+## Prioridad media
+
+### 3. Limpiar 3 drafts de prueba
+
+Cuando Andy confirme que entendió el flujo:
+
+```sql
+DELETE FROM factura_lineas WHERE factura_id IN (
+  SELECT id FROM facturas WHERE estado = 'borrador' AND numero IS NULL
+);
+DELETE FROM facturas WHERE estado = 'borrador' AND numero IS NULL;
+-- Verificar: SELECT proximo_numero FROM factura_counter;  -- debe seguir en 1001
+```
 
 ### 4. Actualizar emails reales de empleadas
 
-Las 16 empleadas tienen email placeholder `@pending.local`. Cuando Andy pase los emails reales:
-- Editar por UI en `/panel/staff` (si la UI lo permite), o
-- Por SQL directo con MCP:
-  ```sql
-  UPDATE usuarios SET email = 'email.real@dominio.com' WHERE nombre = '...' AND apellido = '...';
-  ```
-- Recordar: `usuarios.email` tiene UNIQUE constraint, no pueden repetirse.
+16 empleadas tienen email placeholder `@pending.local`. Cuando Andy pase los emails:
+- Editar por UI en `/panel/staff` o por SQL via MCP
+- `usuarios.email` tiene UNIQUE constraint
 
-### 5. Crear cuentas Supabase Auth para empleadas (cuando hagamos Block L)
+### 5. Verificar properties/index1.html
 
-Las 17 empleadas tienen `auth_id = NULL`. Cuando arranque Block L (PWA Empleada):
-- Crear cuenta en Supabase Auth por cada una (invite por email)
-- Linkear `auth_id` en `usuarios`
-- Configurar RLS para que empleadas solo vean sus propias OS
+Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cuál es la versión activa y si el otro puede borrarse.
 
 ---
 
-## Deuda técnica conocida
+## Próximos bloques (pendientes de diseño + implementación)
 
-- **Rollback incompleto en Etapa 2**: si falla la actualización de `pdf_url` después del upload, el archivo quedó en Storage pero `pdf_url` en DB es null. Usuario puede regenerar pero el número ya fue consumido. Evaluar en Etapa 3.
-- **`fn_incrementar_version()`**: tras Generate Final, la `version` aumenta. Si el modal está abierto con version vieja, el optimistic locking rechaza la siguiente operación. Flujo normal no es problema (abrirEditar siempre refetch).
-- **Block J Etapas 3-4**: pendientes (selección OS + Send to Client + pagos).
+- **Block J Etapa 3**: selección de OS no facturadas, auto-populate líneas desde `os_servicios`
+- **Block J Etapa 4**: Send to Client (SendGrid Edge Function) + registro de pagos (`factura_pagos`)
+- **Block K**: Field Reports (empleadas/proveedores reportan a admin, con fotos)
+- **Block L**: PWA Empleada (mobile-first, login, agenda del día, checklist, field reports)
+- **Block M**: PWA Proveedor (similar a L, más OS hijas sugeridas)
+- **Block N**: Purchasing (lista de compras, inputs desde Field Reports)
+- **Block O**: Settings + System Admin (empresa, logs, audit, config)
+
+---
+
+## Deuda técnica
+
+- **Rollback parcial Etapa 2**: si falla actualizar `pdf_url` tras upload exitoso, el archivo quedó en Storage pero `pdf_url` en DB es null. Usuario puede regenerar pero el número ya fue consumido. Evaluar en Etapa 3.
+- **Optimistic locking post-Generate**: `version` aumenta al generar. Si el modal tenía una version vieja, la siguiente operación falla. Flujo normal no es problema (abrirEditar siempre refetch). Documentado por si aparece en pruebas.
+- **Migrations faltantes en repo**: el schema completo se aplicó en Supabase pero no hay archivos SQL en el repo. Si se clona el schema o se restaura, habría que exportar desde Supabase Dashboard.
 
 ---
 
 ## Historial de pendientes cerrados
 
-| Item | Cerrado | Commit/acción |
+| Item | Cerrado | Referencia |
 |---|---|---|
-| Block J Etapa 1 drafts ABM | ✅ 11 May | `8f0db13` |
-| Block J Etapa 2 codeada | ✅ 11 May | `02ae9c5` |
-| GitHub Pages live | ✅ 13 May | manual + `dc98459` `6c52679` |
-| Fix rutas absolutas → relativas | ✅ 13 May | `dc98459` `6c52679` |
+| Block J Etapa 1 drafts ABM | ✅ 11 May | commit `8f0db13` |
+| Block J Etapa 2 codeada | ✅ 11 May | commit `02ae9c5` |
+| GitHub Pages live | ✅ 13 May | commit `dc98459` `6c52679` |
+| Fix rutas absolutas → relativas (34 archivos) | ✅ 13 May | commit `dc98459` `6c52679` |
 | Bug fn_handle_new_user search_path | ✅ 13 May | SQL manual (sin migration) |
-| Andy en sistema (usuario + empleada) | ✅ 13 May | SQL via MCP + `66a709b` |
-| Email andyflo → andy.flo corregido | ✅ 13 May | `66a709b` |
+| Andy en sistema (usuario owner + empleada) | ✅ 13 May | SQL via MCP + commit `66a709b` |
+| Email andy.flo corregido (era andyflo) | ✅ 13 May | commit `66a709b` |
 | 17 empleadas cargadas | ✅ 13 May | SQL via MCP |
 | MCP Supabase write-enabled | ✅ 13 May | config MCP |
