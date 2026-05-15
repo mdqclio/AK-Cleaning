@@ -188,7 +188,7 @@
                   <div class="form-grid-2">
                     <div class="field">
                       <label class="field-label">Client <span class="required">*</span></label>
-                      <select x-model="formData.cliente_id">
+                      <select x-model="formData.cliente_id" @change="onClienteChange()">
                         <option value="">— Select client —</option>
                         <template x-for="c in clientesDropdown" :key="c.id">
                           <option :value="c.id" x-text="formatNombreCliente(c)"></option>
@@ -203,12 +203,62 @@
                   </div>
                 </div>
 
+                <!-- Bill To -->
+                <div class="form-section">
+                  <h3><i data-lucide="user"></i> Bill To</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Name</label>
+                      <input type="text" x-model="formData.bill_to_name"
+                             placeholder="Full name or company name">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Email</label>
+                      <input type="email" x-model="formData.bill_to_email"
+                             placeholder="billing@example.com">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Address Line 1</label>
+                    <input type="text" x-model="formData.bill_to_address_1"
+                           placeholder="Street address">
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Address Line 2</label>
+                    <input type="text" x-model="formData.bill_to_address_2"
+                           placeholder="Apt, suite, unit (optional)">
+                  </div>
+                  <div class="form-grid-3">
+                    <div class="field">
+                      <label class="field-label">City</label>
+                      <input type="text" x-model="formData.bill_to_city" placeholder="City">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">State</label>
+                      <input type="text" x-model="formData.bill_to_state" placeholder="FL" maxlength="2">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">ZIP</label>
+                      <input type="text" x-model="formData.bill_to_zip" placeholder="33140" maxlength="10">
+                    </div>
+                  </div>
+                </div>
+
                 <!-- FOR section -->
                 <div class="form-section">
                   <h3><i data-lucide="file-text"></i> FOR (visible on invoice)</h3>
                   <div class="field">
-                    <label class="field-label">Property / Unit</label>
-                    <input type="text" x-model="formData.for_property"
+                    <label class="field-label">Property</label>
+                    <select x-model="formData.propiedad_id" @change="onPropiedadChange()">
+                      <option value="">— Select property (optional) —</option>
+                      <template x-for="p in propiedadesDropdown" :key="p.id">
+                        <option :value="p.id" x-text="p.unidad ? `${p.nombre_referencia} – ${p.unidad}` : p.nombre_referencia"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Property / Unit (on PDF)</label>
+                    <input type="text" x-model="formData.for_property_unit"
                            placeholder="e.g. Alfonsina – Unit 4B">
                   </div>
                   <div class="field">
@@ -291,6 +341,13 @@
               <div class="modal-footer">
                 <button class="btn btn-ghost" @click="cerrarModal()" :disabled="guardando || generando">Cancel</button>
 
+                <!-- Delete draft (solo borrador guardado) -->
+                <button class="btn-void" x-show="formData.id && formData.estado === 'borrador'"
+                        @click="eliminarDesdeModal()" :disabled="guardando || generando" style="display:none">
+                  <i data-lucide="trash-2"></i>
+                  Delete
+                </button>
+
                 <!-- Ver PDF (facturas con pdf_url ya generado) -->
                 <template x-if="formData.pdf_url">
                   <a class="btn btn-ghost" :href="formData.pdf_url" target="_blank"
@@ -363,10 +420,10 @@
     import { iniciarPanel } from '../js/panel-shell.js';
     import {
       listarFacturas, obtenerFactura, crearFactura, actualizarFactura,
-      eliminarFactura, listarClientesActivos, traducirError,
-      obtenerClienteParaFactura, generarNumeroYSnapshot,
-      subirPDF, actualizarPdfUrl, devolverNumero, revertirABorrador,
-      anularFactura
+      eliminarFactura, listarClientesActivos, listarPropiedadesCliente,
+      traducirError, obtenerClienteParaFactura,
+      generarNumero, subirPDF, actualizarPdfUrl, devolverNumero,
+      revertirABorrador, anularFactura
     } from './js/invoices-api.js';
 
     (async () => {
@@ -390,6 +447,7 @@
           porPagina: 20,
 
           clientesDropdown: [],
+          propiedadesDropdown: [],
 
           modalAbierto: false,
           guardando: false,
@@ -412,11 +470,20 @@
               numero: null,
               cliente_id: '',
               fecha: new Date().toISOString().split('T')[0],
-              for_property: '',
+              bill_to_name: '',
+              bill_to_email: '',
+              bill_to_address_1: '',
+              bill_to_address_2: '',
+              bill_to_city: '',
+              bill_to_state: '',
+              bill_to_zip: '',
+              propiedad_id: '',
+              for_property_unit: '',
               for_service_period: '',
               for_description: '',
               notas: '',
               estado: 'borrador',
+              pdf_url: null,
               version: 1
             };
           },
@@ -522,6 +589,7 @@
           abrirNuevo() {
             this.formData = this.formDataVacio();
             this.lineas = [this.lineaVacia()];
+            this.propiedadesDropdown = [];
             this.modalAbierto = true;
             this.$nextTick(() => window.lucide?.createIcons());
           },
@@ -535,20 +603,33 @@
               return;
             }
 
-            // Split descripcion_general en los 3 campos FOR
-            const partes = (factura.descripcion_general || '').split('\n');
             this.formData = {
               id:                 factura.id,
               numero:             factura.numero,
               cliente_id:         factura.cliente_id,
               fecha:              factura.fecha,
-              for_property:       partes[0] || '',
-              for_service_period: partes[1] || '',
-              for_description:    partes.slice(2).join('\n') || '',
-              notas:              factura.notas || '',
+              bill_to_name:       factura.bill_to_name      || '',
+              bill_to_email:      factura.bill_to_email     || '',
+              bill_to_address_1:  factura.bill_to_address_1 || '',
+              bill_to_address_2:  factura.bill_to_address_2 || '',
+              bill_to_city:       factura.bill_to_city      || '',
+              bill_to_state:      factura.bill_to_state     || '',
+              bill_to_zip:        factura.bill_to_zip       || '',
+              propiedad_id:       factura.propiedad_id      || '',
+              for_property_unit:  factura.for_property_unit  || '',
+              for_service_period: factura.for_service_period || '',
+              for_description:    factura.for_description    || '',
+              notas:              factura.notas    || '',
               estado:             factura.estado,
+              pdf_url:            factura.pdf_url  || null,
               version:            factura.version
             };
+
+            // Cargar propiedades del cliente
+            if (factura.cliente_id) {
+              const { data: props } = await listarPropiedadesCliente(factura.cliente_id);
+              this.propiedadesDropdown = props;
+            }
 
             this.lineas = (factura.factura_lineas || []).map(l => ({
               id:              l.id,
@@ -598,30 +679,29 @@
 
             this.guardando = true;
 
-            // Armar descripcion_general desde los 3 campos FOR
-            const descripcion_general = [
-              f.for_property,
-              f.for_service_period,
-              f.for_description
-            ].filter(x => x?.trim()).join('\n') || null;
-
-            // Calcular totales (sin tax ni discount en Etapa 1)
             const subtotal = lineasValidas.reduce((acc, l) =>
               acc + (parseFloat(l.qty) || 0) * (parseFloat(l.precio_unitario) || 0), 0
             );
 
             const datosFactura = {
-              cliente_id:       f.cliente_id,
-              fecha:            f.fecha,
-              periodo_servicio: f.for_service_period?.trim() || null,
-              descripcion_general,
+              cliente_id:         f.cliente_id,
+              fecha:              f.fecha,
+              bill_to_name:       f.bill_to_name?.trim()      || null,
+              bill_to_email:      f.bill_to_email?.trim()     || null,
+              bill_to_address_1:  f.bill_to_address_1?.trim() || null,
+              bill_to_address_2:  f.bill_to_address_2?.trim() || null,
+              bill_to_city:       f.bill_to_city?.trim()      || null,
+              bill_to_state:      f.bill_to_state?.trim()     || null,
+              bill_to_zip:        f.bill_to_zip?.trim()       || null,
+              propiedad_id:       f.propiedad_id              || null,
+              for_property_unit:  f.for_property_unit?.trim()  || null,
+              for_service_period: f.for_service_period?.trim() || null,
+              for_description:    f.for_description?.trim()    || null,
               subtotal,
               descuento_total:  0,
               tax_total:        0,
               total_due:        subtotal,
               notas:            f.notas?.trim() || null
-              // estado: manejado por crearFactura (siempre 'borrador')
-              // version, actualizado_en, idempotency_key: manejados por triggers de DB
             };
 
             const lineasParaGuardar = lineasValidas.map((l, idx) => ({
@@ -701,6 +781,56 @@
             this.recargar();
           },
 
+          // ─── onChange helpers ────────────────────────
+          async onClienteChange() {
+            const cid = this.formData.cliente_id;
+            if (!cid) {
+              this.propiedadesDropdown = [];
+              this.formData.propiedad_id = '';
+              return;
+            }
+            // Auto-fill bill_to desde el cliente
+            const { cliente } = await obtenerClienteParaFactura(cid);
+            if (cliente) {
+              this.formData.bill_to_name      = cliente.bill_to_name      || `${cliente.nombre || ''} ${cliente.apellido || ''}`.trim();
+              this.formData.bill_to_email     = cliente.bill_to_email     || cliente.email || '';
+              this.formData.bill_to_address_1 = cliente.bill_to_address_1 || '';
+              this.formData.bill_to_address_2 = cliente.bill_to_address_2 || '';
+              this.formData.bill_to_city      = cliente.bill_to_city      || '';
+              this.formData.bill_to_state     = cliente.bill_to_state     || '';
+              this.formData.bill_to_zip       = cliente.bill_to_zip       || '';
+            }
+            // Cargar propiedades del cliente
+            const { data: props } = await listarPropiedadesCliente(cid);
+            this.propiedadesDropdown = props;
+            this.formData.propiedad_id = '';
+          },
+
+          onPropiedadChange() {
+            const pid = this.formData.propiedad_id;
+            if (!pid) return;
+            const prop = this.propiedadesDropdown.find(p => p.id === pid);
+            if (prop) {
+              this.formData.for_property_unit = prop.unidad
+                ? `${prop.nombre_referencia} – ${prop.unidad}`
+                : prop.nombre_referencia;
+            }
+          },
+
+          // ─── Eliminar desde modal ────────────────────
+          async eliminarDesdeModal() {
+            if (this.formData.estado !== 'borrador') return;
+            if (!confirm('Vas a borrar este draft definitivamente. ¿Continuar?')) return;
+            const { error } = await eliminarFactura(this.formData.id);
+            if (error) {
+              this.mostrarToast('error', traducirError(error));
+              return;
+            }
+            this.modalAbierto = false;
+            this.mostrarToast('success', 'Draft deleted');
+            await this.recargar();
+          },
+
           // ─── Generate Final ──────────────────────────
           async generarFinal() {
             if (!confirm('Once generated, the invoice number cannot be changed. Continue?')) return;
@@ -709,38 +839,23 @@
             let nroAsignado = null;
 
             try {
-              // 1. Obtener cliente con campos bill_to
-              const { cliente, error: errCliente } = await obtenerClienteParaFactura(this.formData.cliente_id);
-              if (errCliente) throw errCliente;
-
-              // 2. Armar snapshot bill_to
-              const snapshotData = {
-                bill_to_name_snapshot:      cliente.bill_to_name || `${cliente.nombre} ${cliente.apellido}`,
-                bill_to_email_snapshot:     cliente.bill_to_email || cliente.email || null,
-                bill_to_address_1_snapshot: cliente.bill_to_address_1 || null,
-                bill_to_address_2_snapshot: cliente.bill_to_address_2 || null,
-                bill_to_city_snapshot:      cliente.bill_to_city || null,
-                bill_to_state_snapshot:     cliente.bill_to_state || null,
-                bill_to_zip_snapshot:       cliente.bill_to_zip || null
-              };
-
-              // 3. Asignar número y actualizar DB (version check incluido)
-              const { numero, error: errGen } = await generarNumeroYSnapshot(
-                this.formData.id, this.formData.version, snapshotData
+              // 1. Asignar número y cambiar estado a 'generada' (bill_to ya está en draft)
+              const { numero, error: errGen } = await generarNumero(
+                this.formData.id, this.formData.version
               );
               if (errGen) throw errGen;
               nroAsignado = numero;
 
-              // 4. Traer factura fresca con lineas y snapshot ya guardado
+              // 2. Traer factura fresca con lineas para el PDF
               const { factura: facturaFull, error: errFetch } = await obtenerFactura(this.formData.id);
               if (errFetch) throw errFetch;
 
-              // 5. Renderizar HTML del PDF
+              // 3. Renderizar HTML del PDF
               const htmlPDF = this.renderizarHTMLPDF(facturaFull, numero);
               const container = document.getElementById('pdf-render-area');
               container.innerHTML = htmlPDF;
 
-              // 6. Generar blob con html2pdf
+              // 4. Generar blob con html2pdf
               const blob = await html2pdf()
                 .set({
                   margin: 0,
@@ -753,16 +868,16 @@
                 .outputPdf('blob');
               container.innerHTML = '';
 
-              // 7. Upload a Storage
+              // 5. Upload a Storage
               const año = new Date(facturaFull.fecha + 'T12:00:00').getFullYear();
               const { publicUrl, error: errUpload } = await subirPDF(numero, año, blob);
               if (errUpload) throw errUpload;
 
-              // 8. Guardar pdf_url en DB
+              // 6. Guardar pdf_url en DB
               const { error: errUrl } = await actualizarPdfUrl(this.formData.id, publicUrl);
               if (errUrl) throw errUrl;
 
-              // 9. Abrir preview con blob URL
+              // 7. Abrir preview con blob URL
               const blobUrl = URL.createObjectURL(blob);
               this.previewUrl = blobUrl;
               this.previewNumero = numero;
@@ -787,7 +902,8 @@
 
           // ─── Anular ──────────────────────────────────
           async anular() {
-            if (!confirm('Void this invoice? This cannot be undone.')) return;
+            const nro = this.formData.numero;
+            if (!confirm(`Vas a anular la factura N° ${nro}. El número queda registrado como hueco. ¿Continuar?`)) return;
             this.generando = true;
             const { error } = await anularFactura(this.formData.id, this.formData.version);
             this.generando = false;
@@ -843,15 +959,14 @@
               return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             };
 
-            const billToName  = this.escapeHtml(factura.bill_to_name_snapshot || '');
-            const billToAddr1 = this.escapeHtml(factura.bill_to_address_1_snapshot || '');
-            const billToAddr2 = this.escapeHtml(factura.bill_to_address_2_snapshot || '');
-            const billToCity  = [factura.bill_to_city_snapshot, factura.bill_to_state_snapshot, factura.bill_to_zip_snapshot].filter(Boolean).join(', ');
+            const billToName  = this.escapeHtml(factura.bill_to_name  || '');
+            const billToAddr1 = this.escapeHtml(factura.bill_to_address_1 || '');
+            const billToAddr2 = this.escapeHtml(factura.bill_to_address_2 || '');
+            const billToCity  = [factura.bill_to_city, factura.bill_to_state, factura.bill_to_zip].filter(Boolean).join(', ');
 
-            const partes = (factura.descripcion_general || '').split('\n');
-            const forProperty = this.escapeHtml(partes[0] || '');
-            const forPeriod   = this.escapeHtml(partes[1] || '');
-            const forDesc     = this.escapeHtml(partes.slice(2).join(' ') || '');
+            const forProperty = this.escapeHtml(factura.for_property_unit  || '');
+            const forPeriod   = this.escapeHtml(factura.for_service_period  || '');
+            const forDesc     = this.escapeHtml(factura.for_description     || '');
 
             const logoSrc = this.logoBase64 || '/assets/ak-logo.png';
 
