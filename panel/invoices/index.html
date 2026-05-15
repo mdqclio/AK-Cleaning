@@ -17,7 +17,7 @@
 <body>
   <!-- Área oculta para renderizar el HTML del PDF antes de convertir con html2pdf -->
   <div id="pdf-render-area"
-       style="position:fixed; left:-9999px; top:0; width:210mm; pointer-events:none; z-index:-1;"></div>
+       style="position:absolute; left:-9999px; top:0; width:210mm; pointer-events:none;"></div>
 
   <div class="panel-layout">
     <aside class="sidebar" id="sidebar"></aside>
@@ -498,7 +498,7 @@
             await this.cargarClientes();
             await this.recargar();
             // Precargar logo como base64 para PDF (async, no bloquea UI)
-            this.cargarLogoBase64('/assets/ak-logo.png').then(b64 => { this.logoBase64 = b64; });
+            this.cargarLogoBase64('../../assets/ak-logo.png').then(b64 => { this.logoBase64 = b64; });
           },
 
           async cargarClientes() {
@@ -968,7 +968,7 @@
             const forPeriod   = this.escapeHtml(factura.for_service_period  || '');
             const forDesc     = this.escapeHtml(factura.for_description     || '');
 
-            const logoSrc = this.logoBase64 || '/assets/ak-logo.png';
+            const logoSrc = this.logoBase64 || '../../assets/ak-logo.png';
 
             const rowsHTML = filas.map((l, i) => {
               const bg = i % 2 === 0 ? '#ffffff' : '#f9f9f9';
