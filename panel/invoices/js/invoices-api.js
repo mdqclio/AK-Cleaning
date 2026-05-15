@@ -171,12 +171,13 @@ export async function obtenerClienteParaFactura(cliente_id) {
 }
 
 /**
- * Asigna número correlativo, copia snapshot bill_to y cambia estado a 'generada'.
+ * Asigna número correlativo y cambia estado a 'generada'.
  * Hace version check ANTES de consumir un número.
  * Si el UPDATE falla, devuelve el número con devolver_numero_factura().
+ * Bill To ya está persistido en la factura — no se necesita snapshot.
  * @returns {{ numero, error }}
  */
-export async function generarNumeroYSnapshot(id, version, snapshotData) {
+export async function generarNumero(id, version) {
   const { data: actual } = await supabase
     .from('facturas').select('version').eq('id', id).single();
 
@@ -191,7 +192,7 @@ export async function generarNumeroYSnapshot(id, version, snapshotData) {
 
   const { error: errUpdate } = await supabase
     .from('facturas')
-    .update({ numero: nro, estado: 'generada', ...snapshotData })
+    .update({ numero: nro, estado: 'generada' })
     .eq('id', id);
 
   if (errUpdate) {
@@ -238,7 +239,8 @@ export async function revertirABorrador(id) {
 }
 
 /**
- * Cambia estado a 'anulada'. Solo permite borrador o generada.
+ * Cambia estado a 'anulada'. Solo permite estado='generada'.
+ * El número queda registrado como hueco (no se devuelve al counter).
  */
 export async function anularFactura(id, version) {
   const { data: actual } = await supabase
@@ -248,8 +250,8 @@ export async function anularFactura(id, version) {
   if (actual.version !== version) {
     return { error: { message: 'This invoice was modified by someone else. Please reload and try again.' } };
   }
-  if (!['borrador', 'generada'].includes(actual.estado)) {
-    return { error: { message: 'Only draft or generated invoices can be voided.' } };
+  if (actual.estado !== 'generada') {
+    return { error: { message: 'Only generated invoices can be voided.' } };
   }
 
   const { error } = await supabase.from('facturas').update({ estado: 'anulada' }).eq('id', id);
@@ -267,6 +269,18 @@ export async function listarClientesActivos() {
   return { data: data || [], error };
 }
 
+/** Propiedades activas de un cliente para el dropdown del form. */
+export async function listarPropiedadesCliente(cliente_id) {
+  if (!cliente_id) return { data: [] };
+  const { data, error } = await supabase
+    .from('propiedades')
+    .select('id, nombre_referencia, unidad')
+    .eq('cliente_id', cliente_id)
+    .eq('activa', true)
+    .order('nombre_referencia');
+  return { data: data || [], error };
+}
+
 // ─── ERROR HELPER ────────────────────────────────────
 
 export function traducirError(error) {
@@ -277,7 +291,7 @@ export function traducirError(error) {
     return 'This invoice has been sent. To make corrections, issue a credit note.';
   }
   if (msg.includes('Only draft invoices can be deleted')) return msg;
-  if (msg.includes('Only draft or generated invoices can be voided')) return msg;
+  if (msg.includes('Only generated invoices can be voided')) return msg;
   if (msg.includes('Could not assign invoice number')) return msg;
   if (msg.includes('violates not-null'))   return 'Please complete all required fields.';
   if (msg.includes('foreign key'))         return 'Referenced record no longer exists. Please reload.';
