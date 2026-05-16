@@ -851,11 +851,17 @@
               if (errFetch) throw errFetch;
 
               // 3. Renderizar HTML del PDF
+              console.log('STEP 1 - facturaFull:', JSON.stringify(facturaFull, null, 2));
               const htmlPDF = this.renderizarHTMLPDF(facturaFull, numero);
+              console.log('STEP 2 - htmlPDF length:', htmlPDF?.length, 'preview:', htmlPDF?.substring(0, 500));
               const container = document.getElementById('pdf-render-area');
+              console.log('STEP 3 - container before:', container.innerHTML.length);
               container.innerHTML = htmlPDF;
+              console.log('STEP 4 - container after setHTML:', container.innerHTML.length);
+              console.log('STEP 5 - container offsetWidth/Height:', container.offsetWidth, container.offsetHeight);
 
               // 4. Generar blob con html2pdf
+              console.log('STEP 6 - calling html2pdf');
               const blob = await html2pdf()
                 .set({
                   margin: 0,
@@ -866,6 +872,7 @@
                 })
                 .from(container)
                 .outputPdf('blob');
+              console.log('STEP 7 - blob size:', blob.size);
               container.innerHTML = '';
 
               // 5. Upload a Storage
