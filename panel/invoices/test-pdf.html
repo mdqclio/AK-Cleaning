@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF Diagnosis Test — AK Invoices</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+    h1 { font-size: 18px; margin-bottom: 16px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    button {
+      padding: 10px 18px; font-size: 14px; cursor: pointer;
+      border: none; border-radius: 6px; background: #0a1628; color: white;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #log {
+      background: #111; color: #0f0; font-family: monospace; font-size: 12px;
+      padding: 12px; border-radius: 6px; min-height: 120px; white-space: pre-wrap;
+      margin-bottom: 16px; max-height: 300px; overflow-y: auto;
+    }
+    #preview-area { margin-top: 16px; }
+    iframe { width: 100%; height: 600px; border: 2px solid #0a1628; border-radius: 6px; }
+    /* Render container — same styles as production */
+    #pdf-render-area {
+      position: absolute; left: -9999px; top: 0; width: 210mm; pointer-events: none;
+    }
+    .test-label { font-size: 12px; color: #555; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- Same off-screen container as production -->
+<div id="pdf-render-area"></div>
+
+<h1>PDF Diagnosis Test — Safari Bug Investigation</h1>
+
+<div class="controls">
+  <div>
+    <div class="test-label">Test 1: Full template (logo + tabla)</div>
+    <button id="btn-full" onclick="runTest('full')">▶ Full Template</button>
+  </div>
+  <div>
+    <div class="test-label">Test 2: Sin logo (solo texto + tabla)</div>
+    <button id="btn-nologо" onclick="runTest('nolog')">▶ Sin Logo</button>
+  </div>
+  <div>
+    <div class="test-label">Test 3: Logo sin object-fit/border-radius</div>
+    <button id="btn-plainimg" onclick="runTest('plainimg')">▶ Logo Plano</button>
+  </div>
+  <div>
+    <div class="test-label">Test 4: Height explícita en container</div>
+    <button id="btn-height" onclick="runTest('height')">▶ Con Height Explícita</button>
+  </div>
+  <div>
+    <div class="test-label">Test 5: Solo texto, sin imágenes ni tablas</div>
+    <button id="btn-minimal" onclick="runTest('minimal')">▶ Minimal</button>
+  </div>
+</div>
+
+<div id="log">Listo para testear. Abrí DevTools → Console para logs adicionales.\n</div>
+<div id="preview-area"></div>
+
+<script>
+(async () => {
+  const log = (msg) => {
+    const el = document.getElementById('log');
+    el.textContent += msg + '\n';
+    el.scrollTop = el.scrollHeight;
+    console.log('[test-pdf]', msg);
+  };
+
+  // Logo path — mismo que producción
+  const LOGO_URL = '../../assets/ak-logo.png';
+
+  // Cargar logo como base64 (mismo mecanismo que producción)
+  async function cargarLogoBase64(url) {
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      log(`Logo fetch: status=${resp.status}, Content-Type=${resp.headers.get('content-type')}, blob.type=${blob.type}, blob.size=${blob.size}`);
+      return await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const prefix = reader.result.substring(0, 40);
+          log(`Logo data URL prefix: ${prefix}`);
+          resolve(reader.result);
+        };
+        reader.onerror = () => { log('Logo FileReader error'); resolve(null); };
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) { log(`Logo fetch error: ${e.message}`); return null; }
+  }
+
+  // Template HTML con datos hardcoded — replica exacta de renderizarHTMLPDF
+  function buildTemplate(opts = {}) {
+    const { noLogo = false, plainImg = false } = opts;
+
+    const logoSrc = noLogo ? null : window._logoBase64 || LOGO_URL;
+
+    const logoHtml = noLogo
+      ? `<div style="width:64px;height:64px;background:#ccc;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;">NO LOGO</div>`
+      : plainImg
+        ? `<img src="${logoSrc}" style="width:64px;height:64px;">`
+        : `<img src="${logoSrc}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">`;
+
+    const rowsHTML = [
+      { fecha:'May 1, 2025', desc:'Cleaning Service — Apt 4B', qty:1, unit:'$350.00', total:'$350.00' },
+      { fecha:'May 8, 2025', desc:'Deep Clean — Pool Area', qty:1, unit:'$200.00', total:'$200.00' },
+      { fecha:'May 15, 2025', desc:'Regular Maintenance', qty:2, unit:'$150.00', total:'$300.00' },
+    ].map((r, i) => {
+      const bg = i % 2 === 0 ? '#ffffff' : '#f9f9f9';
+      return `<tr style="background:${bg};border-bottom:1px solid #eeeeee;">
+        <td style="padding:5px 8px;font-size:9px;vertical-align:top;width:15%;">${r.fecha}</td>
+        <td style="padding:5px 8px;font-size:9px;vertical-align:top;">${r.desc}</td>
+        <td style="padding:5px 8px;font-size:9px;text-align:center;vertical-align:top;width:8%;">${r.qty}</td>
+        <td style="padding:5px 8px;font-size:9px;text-align:right;vertical-align:top;width:14%;">${r.unit}</td>
+        <td style="padding:5px 8px;font-size:9px;text-align:right;vertical-align:top;width:14%;">${r.total}</td>
+      </tr>`;
+    }).join('') + Array(7).fill(null).map((_, i) => {
+      const bg = (i + 3) % 2 === 0 ? '#ffffff' : '#f9f9f9';
+      return `<tr style="background:${bg};border-bottom:1px solid #eeeeee;">
+        <td style="padding:5px 8px;font-size:9px;">&nbsp;</td>
+        <td style="padding:5px 8px;font-size:9px;">&nbsp;</td>
+        <td style="padding:5px 8px;font-size:9px;">&nbsp;</td>
+        <td style="padding:5px 8px;font-size:9px;">&nbsp;</td>
+        <td style="padding:5px 8px;font-size:9px;">&nbsp;</td>
+      </tr>`;
+    }).join('');
+
+    return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#333;padding:14mm 14mm 10mm 14mm;width:182mm;margin:0 auto;box-sizing:border-box;">
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:8mm;">
+        <tr>
+          <td style="width:22%;vertical-align:top;">${logoHtml}</td>
+          <td style="width:45%;vertical-align:middle;text-align:center;padding:0 8px;">
+            <div style="font-size:11px;font-weight:bold;color:#0a1628;line-height:1.3;">AK PROPERTY MANAGEMENT</div>
+            <div style="font-size:11px;font-weight:bold;color:#0a1628;line-height:1.3;">CONCIERGE SERVICES</div>
+            <div style="margin-top:4px;font-size:9px;color:#555;">Miami Beach, FL 33140</div>
+            <div style="font-size:9px;color:#555;">786-253-7983</div>
+            <div style="font-size:9px;color:#555;">akconciergeservices@gmail.com</div>
+          </td>
+          <td style="width:33%;vertical-align:top;text-align:right;">
+            <div style="font-size:22px;font-weight:bold;color:#0a1628;letter-spacing:1px;margin-bottom:5px;">INVOICE</div>
+            <table style="width:100%;border-collapse:collapse;font-size:9px;">
+              <tr>
+                <td style="background:#e8e8e8;padding:4px 8px;color:#666;border:1px solid #ddd;">INVOICE #</td>
+                <td style="background:#e8e8e8;padding:4px 8px;text-align:right;font-weight:bold;border:1px solid #ddd;border-left:none;">TEST-001</td>
+              </tr>
+              <tr>
+                <td style="background:#f2f2f2;padding:4px 8px;color:#666;border:1px solid #ddd;border-top:none;">DATE</td>
+                <td style="background:#f2f2f2;padding:4px 8px;text-align:right;border:1px solid #ddd;border-left:none;border-top:none;">May 16, 2025</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:7mm;">
+        <tr>
+          <td style="width:50%;background:#f5f5f5;padding:7px 10px;vertical-align:top;border:1px solid #ddd;">
+            <div style="font-weight:bold;font-size:8px;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;">BILL TO</div>
+            <div style="font-weight:bold;font-size:10px;">Andrea Manca</div>
+            <div style="font-size:9px;margin-top:2px;">123 Ocean Drive</div>
+            <div style="font-size:9px;">Miami Beach, FL 33139</div>
+          </td>
+          <td style="width:50%;background:#f5f5f5;padding:7px 10px;vertical-align:top;border:1px solid #ddd;border-left:none;">
+            <div style="font-weight:bold;font-size:8px;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;">FOR</div>
+            <div style="font-weight:bold;font-size:10px;">Alfonsina — Unit 4B</div>
+            <div style="font-size:9px;margin-top:2px;">May 1–15, 2025</div>
+            <div style="font-size:9px;">Regular cleaning services</div>
+          </td>
+        </tr>
+      </table>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:5mm;">
+        <thead>
+          <tr style="background:#0a1628;color:white;">
+            <th style="padding:6px 8px;text-align:left;font-size:9px;font-weight:bold;width:15%;">DATE</th>
+            <th style="padding:6px 8px;text-align:left;font-size:9px;font-weight:bold;">DESCRIPTION</th>
+            <th style="padding:6px 8px;text-align:center;font-size:9px;font-weight:bold;width:8%;">QTY</th>
+            <th style="padding:6px 8px;text-align:right;font-size:9px;font-weight:bold;width:14%;">UNIT PRICE</th>
+            <th style="padding:6px 8px;text-align:right;font-size:9px;font-weight:bold;width:14%;">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:9mm;">
+        <tr>
+          <td style="width:55%;"></td>
+          <td style="width:45%;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr style="background:#0a1628;color:white;">
+                <td style="padding:9px 12px;font-size:10px;font-weight:bold;letter-spacing:0.8px;text-transform:uppercase;">TOTAL DUE</td>
+                <td style="padding:9px 12px;font-size:16px;font-weight:bold;text-align:right;">$850.00</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <table style="width:100%;border-collapse:collapse;border-top:2px solid #0a1628;padding-top:6mm;">
+        <tr>
+          <td style="width:50%;vertical-align:top;padding:7px 10px 7px 0;padding-top:7px;">
+            <div style="font-weight:bold;font-size:8px;text-transform:uppercase;letter-spacing:0.8px;color:#0a1628;margin-bottom:5px;">PAYMENT INFORMATION</div>
+            <div style="font-size:9px;margin-bottom:3px;">Make checks payable to:</div>
+            <div style="font-size:9px;font-weight:bold;margin-bottom:4px;">AK Property Management Concierge Services</div>
+            <div style="font-size:9px;"><strong>Citibank</strong></div>
+            <div style="font-size:9px;">Routing Number: 266086554</div>
+          </td>
+          <td style="width:50%;vertical-align:top;padding:7px 0 7px 10px;padding-top:7px;border-left:1px solid #e0e0e0;">
+            <div style="font-weight:bold;font-size:8px;text-transform:uppercase;letter-spacing:0.8px;color:#0a1628;margin-bottom:5px;">THANK YOU!</div>
+            <div style="font-size:9px;margin-bottom:4px;">Thank you for choosing AK Concierge Services.</div>
+            <div style="font-size:9px;font-weight:bold;">Andrea Manca — 786-253-7983</div>
+          </td>
+        </tr>
+      </table>
+
+      <div style="text-align:center;margin-top:5mm;font-size:9px;color:#888;">www.akconciergeservices.com</div>
+    </div>`;
+  }
+
+  function buildMinimal() {
+    return `<div style="font-family:Arial,sans-serif;font-size:14px;color:#333;padding:20px;width:182mm;background:white;">
+      <h1 style="color:#0a1628;font-size:24px;">INVOICE TEST-001</h1>
+      <p style="margin-top:12px;">Bill To: <strong>Andrea Manca</strong></p>
+      <p>Date: May 16, 2025</p>
+      <p style="font-size:18px;font-weight:bold;margin-top:16px;">TOTAL DUE: $850.00</p>
+    </div>`;
+  }
+
+  // Opciones html2canvas — idénticas a producción (sin allowTaint)
+  const H2C_OPTS = { scale: 2, useCORS: true, logging: true };
+
+  async function runTest(variant) {
+    const allBtns = document.querySelectorAll('button');
+    allBtns.forEach(b => b.disabled = true);
+    document.getElementById('preview-area').innerHTML = '';
+
+    log(`\n━━━ TEST: ${variant} ━━━`);
+    log(`UA: ${navigator.userAgent.substring(0, 80)}`);
+
+    const container = document.getElementById('pdf-render-area');
+
+    // Construir HTML según variante
+    let html;
+    if (variant === 'minimal') {
+      html = buildMinimal();
+    } else if (variant === 'height') {
+      html = buildTemplate({ noLogo: false });
+    } else if (variant === 'nolog') {
+      html = buildTemplate({ noLogo: true });
+    } else if (variant === 'plainimg') {
+      html = buildTemplate({ noLogo: false, plainImg: true });
+    } else {
+      html = buildTemplate({ noLogo: false });
+    }
+
+    container.innerHTML = html;
+
+    // Si variante height, forzar height explícita
+    if (variant === 'height') {
+      const naturalH = container.scrollHeight;
+      container.style.height = naturalH + 'px';
+      log(`Height forzada: ${naturalH}px`);
+    } else {
+      container.style.height = '';
+    }
+
+    log(`container.offsetWidth: ${container.offsetWidth}`);
+    log(`container.offsetHeight: ${container.offsetHeight}`);
+    log(`container.scrollHeight: ${container.scrollHeight}`);
+    log(`container.innerHTML.length: ${container.innerHTML.length}`);
+
+    // Verificar img si aplica
+    const img = container.querySelector('img');
+    if (img) {
+      log(`img.src prefix: ${img.src.substring(0, 60)}`);
+      log(`img.complete: ${img.complete}, img.naturalWidth: ${img.naturalWidth}`);
+      // Esperar a que cargue si no está lista
+      if (!img.complete) {
+        log('Esperando que img cargue...');
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = (e) => { log(`img.onerror: ${e.type}`); resolve(); };
+          setTimeout(() => { log('img timeout 3s'); resolve(); }, 3000);
+        });
+        log(`img.complete después de espera: ${img.complete}, naturalWidth: ${img.naturalWidth}`);
+      }
+    }
+
+    log(`Llamando html2pdf().set({...}).from(container).outputPdf('blob')...`);
+    const t0 = Date.now();
+    try {
+      const blob = await html2pdf()
+        .set({
+          margin: 0,
+          filename: `AK-Test-${variant}.pdf`,
+          image: { type: 'jpeg', quality: 0.92 },
+          html2canvas: H2C_OPTS,
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        })
+        .from(container)
+        .outputPdf('blob');
+
+      const elapsed = Date.now() - t0;
+      log(`blob.size: ${blob.size} bytes (elapsed: ${elapsed}ms)`);
+      log(`blob.type: ${blob.type}`);
+
+      if (blob.size < 10000) {
+        log('⚠️  BLOB MUY PEQUEÑO — PDF probablemente en blanco');
+      } else {
+        log('✅ Tamaño OK — mostrando preview...');
+      }
+
+      container.innerHTML = '';
+      container.style.height = '';
+
+      const blobUrl = URL.createObjectURL(blob);
+      const previewEl = document.getElementById('preview-area');
+      previewEl.innerHTML = `<p style="font-size:12px;margin-bottom:8px;">Preview (${blob.size} bytes, variant=${variant}):</p>
+        <iframe src="${blobUrl}"></iframe>
+        <p><a href="${blobUrl}" download="AK-Test-${variant}.pdf" style="font-size:12px;">⬇ Descargar PDF</a></p>`;
+
+    } catch (err) {
+      log(`ERROR: ${err.message}`);
+      log(`Stack: ${err.stack}`);
+      container.innerHTML = '';
+    }
+
+    allBtns.forEach(b => b.disabled = false);
+  }
+
+  // Pre-cargar logo al iniciar
+  log('Pre-cargando logo base64...');
+  window._logoBase64 = await cargarLogoBase64(LOGO_URL);
+  if (window._logoBase64) {
+    log(`Logo cargado OK (${window._logoBase64.length} chars)`);
+  } else {
+    log('Logo NO cargado — tests con logo usarán URL relativa');
+  }
+  log('Listo. Presioná un botón para testear.\n');
+
+})();
+</script>
+</body>
+</html>
