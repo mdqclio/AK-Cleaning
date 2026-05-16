@@ -90,7 +90,8 @@ Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total 
 - Propiedad: dropdown vinculado a cliente, auto-fill for_property_unit
 - FOR estructurado: for_property_unit, for_service_period, for_description (→ columnas propias)
 - Rollback si falla Generate: devolver_numero + revertir a borrador
-- **Listo para validar en Mac** (bugs de DB corregidos)
+- **Bug residual del commit original `02ae9c5`**: PDF vacío (~3KB). Causa: `#pdf-render-area` tenía `position:fixed; left:-9999px` → html2canvas no capturaba el elemento (fuera del viewport). Fix aplicado en `78e5b89`: `position:absolute`. El chain `.from(container)` estuvo presente desde `02ae9c5` (no era el bug).
+- **Listo para validar en Mac** (bugs de DB corregidos, logs de diagnóstico removidos en `HEAD`)
 
 **Fases 3 y 4 — pendientes (Fase 4 se hace con Leonardo)**
 - Fase 3 (pendiente): selección de OS no facturadas, auto-populate líneas desde `os_servicios`
