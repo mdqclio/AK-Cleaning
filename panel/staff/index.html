@@ -554,7 +554,7 @@
               fecha_inicio:   this.formData.fecha_inicio || null,
               tipos_servicio: this.formData.tipos_servicio,
               notas:          this.formData.notas?.trim() || null,
-              tarifa_hora:    this.formData.tarifa_hora === '' ? null : Number(this.formData.tarifa_hora),
+              tarifa_hora:    (() => { const v = this.formData.tarifa_hora; if (v === null || v === undefined || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; })(),
             });
             error = resultado.error;
           } else {
@@ -566,7 +566,7 @@
               fecha_inicio:   this.formData.fecha_inicio || null,
               tipos_servicio: this.formData.tipos_servicio,
               notas:          this.formData.notas?.trim() || null,
-              tarifa_hora:    this.formData.tarifa_hora === '' ? null : Number(this.formData.tarifa_hora),
+              tarifa_hora:    (() => { const v = this.formData.tarifa_hora; if (v === null || v === undefined || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; })(),
               rol:            this.formData.rol,
             });
             if (!resultado.error && this.formData.activa !== undefined) {
