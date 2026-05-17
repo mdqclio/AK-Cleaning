@@ -486,7 +486,7 @@
         },
 
         abrirCrear() {
-          _modalStore.abierto = true;
+          window.Alpine.store('staffModal').abierto = true;
           const fd = this._formDataVacio();
           this.formData = fd;
           this.errorForm = '';
@@ -498,7 +498,7 @@
         },
 
         async abrirEditar(emp) {
-          _modalStore.abierto = true;
+          window.Alpine.store('staffModal').abierto = true;
           const { empleada, error } = await obtenerEmpleada(emp.id);
           if (error || !empleada) { this.mostrarToast('Error loading staff member.', 'error'); return; }
 
@@ -528,7 +528,7 @@
         },
 
         cerrarModal() {
-          _modalStore.abierto = false;
+          window.Alpine.store('staffModal').abierto = false;
         },
 
         async guardar() {
