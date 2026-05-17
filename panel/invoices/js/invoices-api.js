@@ -20,7 +20,7 @@ export async function listarFacturas({
   let query = supabase
     .from('facturas')
     .select(`
-      id, numero, fecha, descripcion_general, subtotal, total_due, estado, notas,
+      id, numero, fecha, descripcion_general, subtotal, total_due, estado, notas, version,
       creado_en,
       clientes(id, nombre, apellido, razon_social)
     `, { count: 'exact' });
