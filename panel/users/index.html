@@ -1,240 +1,550 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Users — AK Cleaning</title>
-  <link rel="stylesheet" href="../../css/base.css" />
-  <link rel="stylesheet" href="../../css/components.css" />
-  <link rel="stylesheet" href="../css/panel.css" />
-  <link rel="stylesheet" href="../clients/css/clients.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Users · AK Cleaning & Management</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../css/panel.css">
+  <link rel="stylesheet" href="../clients/css/clients.css">
+  <script src="../../config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
+    .user-cell { display: flex; align-items: center; gap: 10px; }
     .user-avatar {
       width: 32px; height: 32px; border-radius: 50%;
-      background: var(--color-accent);
-      color: #fff; font-weight: 700; font-size: var(--text-sm);
+      background: var(--color-accent); color: #fff;
+      font-weight: 700; font-size: var(--text-sm);
       display: inline-flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-right: 10px; text-transform: uppercase;
+      flex-shrink: 0; text-transform: uppercase;
     }
-    .user-cell { display: flex; align-items: center; }
     .user-info small { display: block; color: var(--color-text-soft); font-size: var(--text-xs); margin-top: 1px; }
+    .badge-rol-owner   { background: #fdf3e8; color: #a86e1a; }
+    .badge-rol-admin   { background: #e8f4fd; color: #1a6fa8; }
+    .badge-rol-compras { background: #f0e8fd; color: #6e1aa8; }
+    .account-info-box {
+      background: linear-gradient(135deg, #eff6ff, #e8f4fd);
+      border: 1px solid #bdd9f5; border-left: 4px solid #3b82f6;
+      padding: var(--space-md); border-radius: var(--radius);
+      margin-bottom: var(--space-md); font-size: var(--text-sm);
+      color: var(--color-text-muted); line-height: 1.5;
+    }
+    .account-info-box strong { color: var(--color-primary); }
+    .btn-send-reset {
+      background: var(--color-surface); color: #3b82f6;
+      border: 1px solid #bdd9f5; display: inline-flex;
+      align-items: center; gap: 6px; padding: 8px 14px;
+      border-radius: var(--radius); font-size: var(--text-sm);
+      cursor: pointer; font-weight: 500; font-family: inherit;
+      transition: all var(--transition-fast); white-space: nowrap;
+    }
+    .btn-send-reset:hover { background: #eff6ff; border-color: #3b82f6; }
+    .btn-send-reset:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 </head>
 <body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
 
-<div id="panel-shell"></div>
+    <main class="main">
+      <header class="header" id="header"></header>
 
-<div id="page-content">
-  <div x-data="usersPage()" x-init="init()" class="content-inner">
+      <div class="content">
+        <div class="clients-page" x-data="usersPage()" x-init="init()" x-cloak>
 
-    <!-- ── Toolbar ── -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <div class="search-box">
-          <i data-lucide="search"></i>
-          <input type="text" placeholder="Search by name or email…"
-            x-model="busqueda" @input.debounce.300ms="filtrar()" />
-        </div>
+          <!-- ── Toolbar ── -->
+          <div class="clients-toolbar">
+            <div class="clients-search">
+              <i data-lucide="search"></i>
+              <input
+                type="text"
+                placeholder="Search by name or email…"
+                x-model="busqueda"
+                @input.debounce.300ms="pagina = 1; cargar()"
+              >
+            </div>
 
-        <select class="select" x-model="filtroRol" @change="filtrar()">
-          <option value="all">All Roles</option>
-          <option value="owner">Owner</option>
-          <option value="admin">Admin</option>
-          <option value="compras">Compras</option>
-          <option value="empleada">Empleada</option>
-          <option value="proveedor">Proveedor</option>
-          <option value="superadmin">Superadmin</option>
-        </select>
+            <select x-model="filtroRol" @change="pagina = 1; cargar()">
+              <option value="all">All Roles</option>
+              <option value="owner">Owner</option>
+              <option value="admin">Admin</option>
+              <option value="compras">Compras</option>
+            </select>
 
-        <select class="select" x-model="filtroEstado" @change="filtrar()">
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-    </div>
+            <select x-model="filtroEstado" @change="pagina = 1; cargar()">
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
 
-    <div class="table-wrapper">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Last Login</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
+            <button class="btn btn-primary btn-new" @click="abrirNuevo()">
+              <i data-lucide="user-plus"></i>
+              Add User
+            </button>
+          </div>
 
-          <template x-if="cargando">
-            <template x-for="i in 5" :key="i">
-              <tr>
-                <td><div class="skeleton" style="width:140px;height:14px"></div></td>
-                <td><div class="skeleton" style="width:180px;height:14px"></div></td>
-                <td><div class="skeleton" style="width:80px;height:20px;border-radius:12px"></div></td>
-                <td><div class="skeleton" style="width:60px;height:20px;border-radius:12px"></div></td>
-                <td><div class="skeleton" style="width:100px;height:14px"></div></td>
-                <td></td>
-              </tr>
-            </template>
-          </template>
+          <!-- ── Tabla ── -->
+          <div class="clients-table-wrapper">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
 
-          <template x-if="!cargando && usuariosFiltrados.length === 0">
-            <tr>
-              <td colspan="6" class="empty-state">
-                <i data-lucide="shield-check"></i>
-                <p>No users match your filters.</p>
-              </td>
-            </tr>
-          </template>
+                <!-- Skeleton -->
+                <template x-if="cargando">
+                  <template x-for="i in 5" :key="i">
+                    <tr class="skeleton-row">
+                      <td><span class="skeleton-bar" style="width:180px"></span></td>
+                      <td><span class="skeleton-bar" style="width:110px"></span></td>
+                      <td><span class="skeleton-bar" style="width:70px;border-radius:12px"></span></td>
+                      <td><span class="skeleton-bar" style="width:60px;border-radius:12px"></span></td>
+                      <td></td>
+                    </tr>
+                  </template>
+                </template>
 
-          <template x-if="!cargando && usuariosFiltrados.length > 0">
-            <template x-for="u in usuariosFiltrados" :key="u.id">
-              <tr>
-                <td>
-                  <div class="user-cell">
-                    <div class="user-avatar" x-text="initiales(u)"></div>
-                    <div class="user-info">
-                      <span class="font-medium" x-text="u.nombre || '—'"></span>
+                <!-- Empty -->
+                <template x-if="!cargando && usuarios.length === 0">
+                  <tr>
+                    <td colspan="5">
+                      <div class="empty-state">
+                        <i data-lucide="shield-check"></i>
+                        <h3>No users found</h3>
+                        <p x-text="busqueda || filtroRol !== 'all' || filtroEstado !== 'all'
+                          ? 'No users match your filters.'
+                          : 'Add your first admin, owner or compras user.'"></p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <!-- Filas -->
+                <template x-if="!cargando && usuarios.length > 0">
+                  <template x-for="u in usuarios" :key="u.id">
+                    <tr @click="abrirEditar(u.id)">
+                      <td>
+                        <div class="user-cell">
+                          <div class="user-avatar" x-text="iniciales(u)"></div>
+                          <div class="user-info">
+                            <span x-text="`${u.nombre} ${u.apellido}`"></span>
+                            <small x-text="u.email"></small>
+                          </div>
+                        </div>
+                      </td>
+                      <td x-text="u.telefono || '—'"></td>
+                      <td>
+                        <span class="badge" :class="badgeRol(u.rol)" x-text="rolLabel(u.rol)"></span>
+                      </td>
+                      <td>
+                        <span class="badge-status"
+                          :class="u.activo ? 'badge-status-active' : 'badge-status-inactive'"
+                          x-text="u.activo ? 'Active' : 'Inactive'"></span>
+                      </td>
+                      <td>
+                        <div class="row-actions" @click.stop>
+                          <button @click="abrirEditar(u.id)" title="Edit">
+                            <i data-lucide="pencil"></i>
+                          </button>
+                          <button
+                            :class="u.activo ? 'btn-icon-danger' : ''"
+                            :title="u.activo ? 'Deactivate' : 'Activate'"
+                            :disabled="u.id === usuarioActualId"
+                            @click="confirmarToggle(u)"
+                          >
+                            <i :data-lucide="u.activo ? 'user-x' : 'user-check'"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ── Paginación ── -->
+          <div class="pagination" x-show="!cargando && totalPaginas > 1">
+            <div>
+              Showing <strong x-text="rangoMostrado()"></strong> of <strong x-text="total"></strong>
+            </div>
+            <div class="pagination-controls">
+              <button @click="irPagina(pagina - 1)" :disabled="pagina === 1">
+                <i data-lucide="chevron-left" style="width:14px;height:14px"></i>
+              </button>
+              <template x-for="n in numerosPagina()" :key="n">
+                <button @click="irPagina(n)" :class="n === pagina ? 'active' : ''" x-text="n"></button>
+              </template>
+              <button @click="irPagina(pagina + 1)" :disabled="pagina === totalPaginas">
+                <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Modal ── -->
+          <div class="modal-overlay" x-show="modalAbierto" @click.self="cerrarModal()" x-cloak>
+            <div class="modal-form" @click.stop>
+
+              <div class="modal-header">
+                <h2 x-text="formData.id ? 'Edit User' : 'New User'"></h2>
+                <button class="modal-close" @click="cerrarModal()">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+
+              <div class="modal-body">
+
+                <!-- Email no editable (solo edit) -->
+                <div class="account-info-box" x-show="formData.id">
+                  <strong>Account email cannot be changed</strong> once created.
+                  Use <em>Send Password Reset</em> to let the user set a new password.
+                </div>
+
+                <!-- Personal Info -->
+                <div class="form-section">
+                  <h3><i data-lucide="user"></i> Personal Information</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">First Name <span class="required">*</span></label>
+                      <input type="text" x-model="formData.nombre" placeholder="Jane">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Last Name <span class="required">*</span></label>
+                      <input type="text" x-model="formData.apellido" placeholder="Doe">
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Email <span class="required">*</span></label>
+                      <input
+                        type="email"
+                        x-model="formData.email"
+                        placeholder="jane@example.com"
+                        :disabled="!!formData.id"
+                        :class="{ 'input-disabled': !!formData.id }"
+                      >
+                    </div>
+                    <div class="field">
+                      <label class="field-label">Phone</label>
+                      <input type="tel" x-model="formData.telefono" placeholder="+1 (305) 000-0000">
                     </div>
                   </div>
-                </td>
-                <td><span class="text-muted text-sm" x-text="u.email || '—'"></span></td>
-                <td>
-                  <span class="badge badge-type-individual" x-text="u.rol || '—'"></span>
-                </td>
-                <td>
-                  <span class="badge" :class="u.activo ? 'badge-status-active' : 'badge-status-inactive'"
-                    x-text="u.activo ? 'Active' : 'Inactive'"></span>
-                </td>
-                <td>
-                  <span class="text-muted text-sm" x-text="u.ultimo_login ? formatearFecha(u.ultimo_login) : 'Never'"></span>
-                </td>
-                <td>
-                  <div class="row-actions">
-                    <button
-                      class="btn-icon"
-                      :class="u.activo ? 'btn-icon-danger' : ''"
-                      :title="u.activo ? 'Deactivate' : 'Activate'"
-                      @click="confirmarToggle(u)"
-                      :disabled="u.id === usuarioActualId"
-                    >
-                      <i :data-lucide="u.activo ? 'user-x' : 'user-check'"></i>
-                    </button>
+                </div>
+
+                <!-- Account -->
+                <div class="form-section">
+                  <h3><i data-lucide="shield-check"></i> Account</h3>
+                  <div class="form-grid-2">
+                    <div class="field">
+                      <label class="field-label">Role <span class="required">*</span></label>
+                      <select x-model="formData.rol">
+                        <option value="">— Select role —</option>
+                        <option value="owner">Owner</option>
+                        <option value="admin">Admin</option>
+                        <option value="compras">Compras</option>
+                      </select>
+                    </div>
                   </div>
-                </td>
-              </tr>
-            </template>
-          </template>
 
-        </tbody>
-      </table>
-    </div>
+                  <div x-show="formData.id" style="display:flex;align-items:center;gap:8px;margin-top:var(--space-md)">
+                    <span class="field-label" style="margin:0">Active</span>
+                    <button
+                      type="button"
+                      class="toggle-btn"
+                      :class="formData.activo ? 'toggle-on' : 'toggle-off'"
+                      :disabled="formData.id === usuarioActualId"
+                      @click="formData.id !== usuarioActualId && (formData.activo = !formData.activo)"
+                      :aria-checked="formData.activo"
+                      role="switch"
+                    >
+                      <span class="toggle-thumb"></span>
+                    </button>
+                    <span class="field-help" x-show="formData.id === usuarioActualId" style="margin:0">
+                      Can't deactivate your own account
+                    </span>
+                  </div>
+                </div>
 
-    <p class="text-muted text-sm" style="margin-top:var(--space-md);text-align:center">
-      To add new staff members, use the <a href="../staff/" class="text-accent">Staff</a> module.
-    </p>
+                <!-- Account Actions (solo edit) -->
+                <div class="form-section" x-show="formData.id">
+                  <h3><i data-lucide="key"></i> Account Actions</h3>
+                  <button
+                    type="button"
+                    class="btn-send-reset"
+                    :disabled="enviandoReset"
+                    @click="enviarPasswordReset()"
+                  >
+                    <i data-lucide="mail"></i>
+                    <span x-text="enviandoReset ? 'Sending…' : 'Send Password Reset'"></span>
+                  </button>
+                </div>
 
-  </div>
-</div>
+                <!-- Error -->
+                <div class="alert alert-error" x-show="errorForm" x-text="errorForm" x-cloak></div>
 
-<div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+              </div><!-- /modal-body -->
 
-<script type="module">
-  import { iniciarPanel }     from '../js/panel-shell.js';
-  import { supabase }         from '../../js/supabase-client.js';
+              <div class="modal-footer">
+                <button class="btn btn-secondary btn-md" @click="cerrarModal()">Cancel</button>
+                <button class="btn btn-primary btn-md" :disabled="guardando" @click="guardar()">
+                  <span x-show="guardando" class="spinner spinner-sm"></span>
+                  <span x-text="guardando ? 'Saving…' : (formData.id ? 'Save Changes' : 'Create User')"></span>
+                </button>
+              </div>
 
-  window.usersPage = function () {
-    return {
-      usuarios: [], usuariosFiltrados: [], cargando: true,
-      busqueda: '', filtroRol: 'all', filtroEstado: 'all',
-      usuarioActualId: null,
+            </div><!-- /modal-form -->
+          </div><!-- /modal-overlay -->
 
-      async init() {
-        // Get current user id
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: me } = await supabase.from('usuarios').select('id').eq('auth_id', user.id).single();
-          this.usuarioActualId = me?.id;
-        }
-        await this.cargar();
-      },
+        </div><!-- /clients-page -->
+      </div><!-- /content -->
+    </main>
+  </div><!-- /panel-layout -->
 
-      async cargar() {
-        this.cargando = true;
-        const { data, error } = await supabase
-          .from('usuarios')
-          .select('*')
-          .order('nombre', { ascending: true });
-        if (!error) this.usuarios = data || [];
-        this.cargando = false;
-        this.filtrar();
-        this.$nextTick(() => window.lucide?.createIcons());
-      },
+  <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
-      filtrar() {
-        let lista = [...this.usuarios];
-        if (this.busqueda) {
-          const q = this.busqueda.toLowerCase();
-          lista = lista.filter(u =>
-            (u.nombre || '').toLowerCase().includes(q) ||
-            (u.email  || '').toLowerCase().includes(q)
-          );
-        }
-        if (this.filtroRol !== 'all')    lista = lista.filter(u => u.rol === this.filtroRol);
-        if (this.filtroEstado === 'active')   lista = lista.filter(u => u.activo);
-        if (this.filtroEstado === 'inactive') lista = lista.filter(u => !u.activo);
-        this.usuariosFiltrados = lista;
-      },
+  <script type="module">
+    import { iniciarPanel } from '../js/panel-shell.js';
+    import {
+      listarUsuarios, obtenerUsuario, crearUsuario,
+      actualizarUsuario, toggleUsuarioActivo,
+      reenviarPasswordReset, traducirError
+    } from './js/users-api.js';
 
-      confirmarToggle(u) {
-        if (u.id === this.usuarioActualId) return;
-        const accion = u.activo ? 'deactivate' : 'activate';
-        if (!confirm(`${accion.charAt(0).toUpperCase() + accion.slice(1)} user "${u.email}"?`)) return;
-        this._toggle(u.id, !u.activo);
-      },
-      async _toggle(id, activo) {
-        const { error } = await supabase.from('usuarios').update({ activo }).eq('id', id);
-        if (error) { this.mostrarToast('Error updating user.', 'error'); return; }
-        this.mostrarToast(activo ? 'User activated.' : 'User deactivated.', 'success');
-        await this.cargar();
-      },
+    (async () => {
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin', 'owner'],
+        itemActivo: 'users',
+        tituloHeader: 'Users',
+      });
+      if (!usuario) return;
 
-      initiales(u) {
-        if (u.nombre) return u.nombre.charAt(0);
-        if (u.email)  return u.email.charAt(0);
-        return '?';
-      },
-      formatearFecha(iso) {
-        if (!iso) return 'Never';
-        return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      },
+      window.usersPage = function () {
+        return {
+          // ── Listado
+          usuarios:     [],
+          total:        0,
+          cargando:     true,
+          busqueda:     '',
+          filtroRol:    'all',
+          filtroEstado: 'all',
+          pagina:       1,
+          porPagina:    20,
 
-      mostrarToast(msg, tipo = 'success') {
-        const cont = document.getElementById('toast-container');
-        if (!cont) return;
-        const t = document.createElement('div');
-        t.className = `toast toast-${tipo}`;
-        t.textContent = msg;
-        cont.appendChild(t);
-        setTimeout(() => t.classList.add('toast-visible'), 10);
-        setTimeout(() => { t.classList.remove('toast-visible'); setTimeout(() => t.remove(), 300); }, 3500);
-      },
-    };
-  };
+          // ── Modal
+          modalAbierto:  false,
+          guardando:     false,
+          enviandoReset: false,
+          formData:      {},
+          errorForm:     '',
 
-  await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js');
+          // ── ID del usuario logueado (para no auto-desactivarse)
+          usuarioActualId: null,
 
-  (async () => {
-    await iniciarPanel({
-      rolesPermitidos: ['superadmin', 'owner'],
-      itemActivo: 'users',
-      tituloHeader: 'Users',
-    });
-  })();
-</script>
+          get totalPaginas() {
+            return Math.max(1, Math.ceil(this.total / this.porPagina));
+          },
+
+          async init() {
+            this.usuarioActualId = usuario.id;
+            this.formData = this._formDataVacio();
+            await this.cargar();
+          },
+
+          async cargar() {
+            this.cargando = true;
+            const { data, count, error } = await listarUsuarios({
+              busqueda:  this.busqueda,
+              rol:       this.filtroRol,
+              estado:    this.filtroEstado,
+              pagina:    this.pagina,
+              porPagina: this.porPagina,
+            });
+            if (error) { this.mostrarToast(traducirError(error), 'error'); }
+            this.usuarios = data;
+            this.total    = count;
+            this.cargando = false;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          // ── Paginación
+          rangoMostrado() {
+            if (this.total === 0) return '0';
+            const desde = (this.pagina - 1) * this.porPagina + 1;
+            const hasta = Math.min(this.pagina * this.porPagina, this.total);
+            return `${desde}–${hasta}`;
+          },
+          numerosPagina() {
+            const t = this.totalPaginas, p = this.pagina;
+            const inicio = Math.max(1, p - 2);
+            const fin    = Math.min(t, inicio + 4);
+            const arr = [];
+            for (let i = inicio; i <= fin; i++) arr.push(i);
+            return arr;
+          },
+          irPagina(n) {
+            if (n < 1 || n > this.totalPaginas) return;
+            this.pagina = n;
+            this.cargar();
+          },
+
+          // ── Modal
+          _formDataVacio() {
+            return {
+              id: null, nombre: '', apellido: '', email: '',
+              telefono: '', rol: '', activo: true,
+              _email_original: '',
+            };
+          },
+
+          abrirNuevo() {
+            this.formData     = this._formDataVacio();
+            this.errorForm    = '';
+            this.guardando    = false;
+            this.enviandoReset = false;
+            this.modalAbierto = true;
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          async abrirEditar(id) {
+            this.modalAbierto = true;
+            this.errorForm    = '';
+            this.guardando    = false;
+            this.enviandoReset = false;
+            const { usuario: u, error } = await obtenerUsuario(id);
+            if (error || !u) {
+              this.mostrarToast('Error loading user.', 'error');
+              this.modalAbierto = false;
+              return;
+            }
+            this.formData = {
+              id:              u.id,
+              nombre:          u.nombre || '',
+              apellido:        u.apellido || '',
+              email:           u.email || '',
+              telefono:        u.telefono || '',
+              rol:             u.rol || '',
+              activo:          u.activo ?? true,
+              _email_original: u.email || '',
+            };
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+
+          cerrarModal() {
+            this.modalAbierto = false;
+          },
+
+          // ── Guardar
+          async guardar() {
+            this.errorForm = '';
+            if (!this.formData.nombre?.trim())   { this.errorForm = 'First name is required.'; return; }
+            if (!this.formData.apellido?.trim()) { this.errorForm = 'Last name is required.'; return; }
+            if (!this.formData.rol)              { this.errorForm = 'Role is required.'; return; }
+            if (!this.formData.id && !this.formData.email?.trim()) {
+              this.errorForm = 'Email is required.'; return;
+            }
+
+            this.guardando = true;
+            let error;
+
+            if (!this.formData.id) {
+              // CREATE
+              ({ error } = await crearUsuario({
+                email:    this.formData.email.trim(),
+                rol:      this.formData.rol,
+                nombre:   this.formData.nombre.trim(),
+                apellido: this.formData.apellido.trim(),
+                telefono: this.formData.telefono?.trim() || null,
+              }));
+            } else {
+              // UPDATE datos personales + rol
+              ({ error } = await actualizarUsuario(this.formData.id, {
+                nombre:   this.formData.nombre.trim(),
+                apellido: this.formData.apellido.trim(),
+                telefono: this.formData.telefono?.trim() || null,
+                rol:      this.formData.rol,
+              }));
+              // Toggle activo (si no es el usuario actual)
+              if (!error && this.formData.id !== this.usuarioActualId) {
+                const cur = this.usuarios.find(u => u.id === this.formData.id);
+                if (cur && cur.activo !== this.formData.activo) {
+                  const { error: toggleErr } = await toggleUsuarioActivo(this.formData.id, this.formData.activo);
+                  error = toggleErr;
+                }
+              }
+            }
+
+            this.guardando = false;
+            if (error) { this.errorForm = traducirError(error); return; }
+
+            this.modalAbierto = false;
+            this.mostrarToast(
+              this.formData.id ? 'User updated.' : 'User created. Password reset email sent.',
+              'success'
+            );
+            await this.cargar();
+          },
+
+          // ── Toggle desde la tabla
+          async confirmarToggle(u) {
+            if (u.id === this.usuarioActualId) return;
+            const accion = u.activo ? 'deactivate' : 'activate';
+            if (!confirm(`${accion.charAt(0).toUpperCase() + accion.slice(1)} ${u.nombre} ${u.apellido}?`)) return;
+            const { error } = await toggleUsuarioActivo(u.id, !u.activo);
+            if (error) { this.mostrarToast(traducirError(error), 'error'); return; }
+            this.mostrarToast(u.activo ? 'User deactivated.' : 'User activated.', 'success');
+            await this.cargar();
+          },
+
+          // ── Password reset
+          async enviarPasswordReset() {
+            const email = this.formData._email_original || this.formData.email;
+            if (!email) return;
+            this.enviandoReset = true;
+            const { error } = await reenviarPasswordReset(email);
+            this.enviandoReset = false;
+            if (error) { this.mostrarToast('Failed to send reset email.', 'error'); return; }
+            this.mostrarToast('Password reset email sent.', 'success');
+          },
+
+          // ── Helpers de UI
+          iniciales(u) {
+            return ((u.nombre?.[0] || '') + (u.apellido?.[0] || '')).toUpperCase() || '?';
+          },
+          rolLabel(rol) {
+            const map = { owner: 'Owner', admin: 'Admin', compras: 'Compras' };
+            return map[rol] || rol || '—';
+          },
+          badgeRol(rol) {
+            const map = { owner: 'badge-rol-owner', admin: 'badge-rol-admin', compras: 'badge-rol-compras' };
+            return map[rol] || '';
+          },
+
+          // ── Toast (DOM-based, sin reactividad Alpine)
+          mostrarToast(msg, tipo = 'success') {
+            const cont = document.getElementById('toast-container');
+            if (!cont) return;
+            const t = document.createElement('div');
+            t.className = `toast toast-${tipo}`;
+            t.textContent = msg;
+            cont.appendChild(t);
+            setTimeout(() => t.classList.add('toast-visible'), 10);
+            setTimeout(() => { t.classList.remove('toast-visible'); setTimeout(() => t.remove(), 300); }, 3500);
+          },
+        };
+      };
+
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
 
 </body>
 </html>

@@ -38,6 +38,8 @@ Tabla central de cuentas. Cualquier persona que se loguea al sistema tiene fila 
 - Trigger `trg_handle_new_user`: crea fila auto al insertar en `auth.users`
 - Trigger anti-escalation: bloquea que owner se auto-promueva o modifique superadmin
 
+> **Nota**: el módulo Users (`panel/users/`) gestiona admin/owner/compras. Las filas con `rol='empleada'` están en el módulo Staff, las `'proveedor'` en Providers, y `'superadmin'` se crea solo por SQL.
+
 ### `clientes`
 - `id uuid PK`
 - `nombre text NOT NULL`, `apellido text NOT NULL`

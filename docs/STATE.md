@@ -118,12 +118,19 @@ Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total 
 - Fase 3 (pendiente): selección de OS no facturadas, auto-populate líneas desde `os_servicios`
 - Fase 4 (pendiente): Send to Client (SendGrid Edge Function) + registro de pagos (`factura_pagos`)
 
+### [N] — Users module ✅ (17 May 2026)
+- Listado, búsqueda por nombre/apellido/email, filtros rol/estado, paginación 20/pág
+- CRUD completo: admin/owner/compras (superadmin excluido del dropdown y del listado)
+- signUp Auth + trigger fn_handle_new_user + UPDATE usuarios + resetPasswordForEmail (sin tabla hija)
+- Soft delete via `usuarios.activo`; prevención de auto-desactivación del usuario actual
+- Filtro hardcoded: `WHERE rol IN ('admin','owner','compras')` — Staff y Providers tienen su propio módulo
+- Archivo: `panel/users/index.html`, `panel/users/js/users-api.js`
+
 ### K–O — Pendientes de implementación
 - `panel/reports/index.html` — placeholder vacío (Bloque K: Field Reports)
 - `panel/purchasing/index.html` — placeholder vacío (Bloque N)
 - `panel/schedule/index.html` — placeholder vacío
 - `panel/payments/index.html` — placeholder vacío (Bloque J Etapa 4)
-- `panel/users/index.html` — placeholder vacío
 - `panel/system/` — 3 placeholders (logs, health, config) — solo superadmin
 - `app-empleada/` — vacío (Bloque L: PWA Empleada)
 - `app-proveedor/` — vacío (Bloque M: PWA Proveedor)
