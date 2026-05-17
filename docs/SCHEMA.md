@@ -25,13 +25,16 @@
 ## Tablas confirmadas (en uso)
 
 ### `usuarios`
+Tabla central de cuentas. Cualquier persona que se loguea al sistema tiene fila acá.
 - `id uuid PK`
-- `auth_id uuid` (FK a `auth.users`)
-- `email text`, `nombre text`, `apellido text`, `telefono text`
+- `auth_id uuid FK → auth.users.id NULLABLE` (NULL para empleadas precargadas que aún no tienen cuenta — Block L crea las cuentas)
+- `email text UNIQUE`
+- `nombre text`, `apellido text`, `telefono text`
 - `rol text` CHECK in ('superadmin','owner','admin','empleada','proveedor','compras')
 - `idioma text` ('es'|'en')
-- `activo bool`
+- `activo bool` (estado activa/inactiva — único lugar donde se controla)
 - `foto_perfil text`
+- `actualizado_por uuid FK`
 - Trigger `trg_handle_new_user`: crea fila auto al insertar en `auth.users`
 - Trigger anti-escalation: bloquea que owner se auto-promueva o modifique superadmin
 
@@ -81,12 +84,16 @@
 - `activa bool`
 
 ### `empleadas`
+Datos del **rol empleada** (perfil de trabajo). Los datos personales (nombre/apellido/email/telefono/activo) viven en `usuarios`.
 - `id uuid PK`
-- `usuario_id uuid NOT NULL FK`
-- `tipos_servicio text[]`
-- `tipo_contrato text` — **NO** `contract_type`
-- `disponibilidad text` — **NO** jsonb
-- `doc_seguro_url text`, `doc_id_url text` — **NO** `documentos jsonb`
+- `usuario_id uuid NOT NULL FK → usuarios.id`
+- `tipo_contrato text` (employee | contractor | part-time)
+- `fecha_inicio date` (cuando arrancó a trabajar)
+- `tipos_servicio text[]` (qué servicios hace)
+- `notas text` (notas internas, no se ven en operaciones)
+- `tarifa_hora numeric` (USD/hora — visible solo para owner/superadmin, Capa 1)
+- `disponibilidad text`
+- `doc_seguro_url text`, `doc_id_url text`
 - `creado_en timestamptz`, `actualizado_en timestamptz`
 
 ### `proveedores`

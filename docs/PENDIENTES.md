@@ -84,7 +84,8 @@ Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cu
 
 | Item | Cerrado | Referencia |
 |---|---|---|
-| Capa 1 permisos por rol (UI hide dinero) | ✅ 17 May | este commit |
+| Bloque E Staff — refactor schema mismatch + tarifa_hora Capa 1 | ✅ 17 May | (este commit) |
+| Capa 1 permisos por rol (UI hide dinero) | ✅ 17 May | commit `085eed8` |
 | Block J Etapa 1 drafts ABM | ✅ 11 May | commit `8f0db13` |
 | Block J Etapa 2 codeada | ✅ 11 May | commit `02ae9c5` |
 | Block J Fases 1-2-3 (schema v2 + bill_to + FOR + propiedad) | ✅ 15 May | commits `ea7d915` `e448235` + migración MCP |

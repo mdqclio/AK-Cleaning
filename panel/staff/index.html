@@ -102,7 +102,7 @@
               <tr>
                 <td>
                   <div class="staff-name">
-                    <span x-text="`${emp.nombre} ${emp.apellido}`"></span>
+                    <span x-text="`${emp.usuarios?.nombre} ${emp.usuarios?.apellido}`"></span>
                     <small x-show="emp.fecha_inicio" x-text="`Since ${formatearFecha(emp.fecha_inicio)}`"></small>
                   </div>
                 </td>
@@ -110,7 +110,7 @@
                   <span class="text-muted text-sm" x-text="emp.usuarios?.email || '—'"></span>
                 </td>
                 <td>
-                  <span class="text-muted text-sm" x-text="emp.telefono || '—'"></span>
+                  <span class="text-muted text-sm" x-text="emp.usuarios?.telefono || '—'"></span>
                 </td>
                 <td>
                   <span
@@ -131,8 +131,8 @@
                   ></span>
                 </td>
                 <td>
-                  <span class="badge" :class="emp.activa ? 'badge-status-active' : 'badge-status-inactive'"
-                    x-text="emp.activa ? 'Active' : 'Inactive'"></span>
+                  <span class="badge" :class="emp.usuarios?.activo ? 'badge-status-active' : 'badge-status-inactive'"
+                    x-text="emp.usuarios?.activo ? 'Active' : 'Inactive'"></span>
                 </td>
                 <td>
                   <div class="row-actions">
@@ -141,11 +141,11 @@
                     </button>
                     <button
                       class="btn-icon"
-                      :class="emp.activa ? 'btn-icon-danger' : ''"
-                      :title="emp.activa ? 'Deactivate' : 'Activate'"
+                      :class="emp.usuarios?.activo ? 'btn-icon-danger' : ''"
+                      :title="emp.usuarios?.activo ? 'Deactivate' : 'Activate'"
                       @click="confirmarToggle(emp)"
                     >
-                      <i :data-lucide="emp.activa ? 'user-x' : 'user-check'"></i>
+                      <i :data-lucide="emp.usuarios?.activo ? 'user-x' : 'user-check'"></i>
                     </button>
                   </div>
                 </td>
@@ -267,6 +267,13 @@
             <input class="input" type="date" x-model="formData.fecha_inicio" />
           </div>
         </div>
+
+        <div class="form-grid-2" x-show="verDinero">
+          <div class="form-group">
+            <label class="form-label">Hourly Rate (USD)</label>
+            <input class="input" type="number" step="0.01" min="0" x-model="formData.tarifa_hora" placeholder="25.00" />
+          </div>
+        </div>
       </div>
 
       <!-- ── Section: Service Types (chips) ── -->
@@ -379,310 +386,291 @@
 
 
 <script type="module">
-  import { iniciarPanel }         from '../js/panel-shell.js';
+  import { iniciarPanel }    from '../js/panel-shell.js';
+  import { puedeVerDinero }  from '../js/panel-config.js';
   import {
     listarEmpleadas, obtenerEmpleada, crearEmpleada, actualizarEmpleada,
     toggleEmpleadaActiva, reenviarPasswordReset,
     traducirError, formatearNombreEmpleada, TIPOS_SERVICIO_SUGERIDOS
   } from './js/staff-api.js';
 
-  // ── Shared modal store (bridge between table and modal x-data scopes)
-  const _modalStore = {
-    abierto: false,
-    datos: null,
-    callbacks: { onGuardar: null, onCerrar: null }
-  };
-
-  // ─────────────────────────────────────────────────────────
-  // COMPONENT: staffPage  (table + modal share same component
-  // via window store — both instances read _modalStore)
-  // ─────────────────────────────────────────────────────────
-  window.staffPage = function () {
-    return {
-      // ── Table state
-      empleadas: [],
-      cargando: true,
-      total: 0,
-      pagina: 1,
-      porPagina: 20,
-      filtros: { busqueda: '', estado: 'all', tipo_contrato: 'all' },
-
-      // ── Modal state
-      formData: {},
-      errorForm: '',
-      guardando: false,
-      enviandoReset: false,
-
-      // ── Chips state
-      chipInput: '',
-      mostrarSugerencias: false,
-      sugerenciasFiltradas: [],
-      tiposSugeridos: TIPOS_SERVICIO_SUGERIDOS,
-
-      // ── Computed
-      get totalPaginas() {
-        return Math.max(1, Math.ceil(this.total / this.porPagina));
-      },
-
-      // ── Lifecycle
-      async init() {
-        await this.cargar();
-        // Watch filtros
-        this.$watch('filtros', () => this.cargar());
-        this.$watch('pagina', () => this.cargar());
-        // Listen for table reload from modal save
-        window.addEventListener('staff:recarga', () => this.cargar());
-        window.addEventListener('staff:abrirModal', (e) => {
-          this.formData       = e.detail.formData;
-          this.errorForm      = '';
-          this.guardando      = false;
-          this.enviandoReset  = false;
-          this.chipInput      = '';
-          this.mostrarSugerencias = false;
-        });
-      },
-
-      // ── Load
-      async cargar() {
-        this.cargando = true;
-        const { data, count, error } = await listarEmpleadas({
-          busqueda:       this.filtros.busqueda,
-          estado:         this.filtros.estado,
-          tipo_contrato:  this.filtros.tipo_contrato,
-          pagina:         this.pagina,
-          porPagina:      this.porPagina,
-        });
-        this.empleadas = data;
-        this.total = count;
-        this.cargando = false;
-        this.$nextTick(() => window.lucide?.createIcons());
-      },
-
-      // ── Pagination
-      resetPagina() { this.pagina = 1; },
-      irPagina(n)    { this.pagina = n; },
-
-      // ── Open modal
-      _formDataVacio() {
-        return {
-          id: null,
-          nombre: '', apellido: '', email: '', telefono: '',
-          rol: 'empleada', tipo_contrato: '', fecha_inicio: '',
-          tipos_servicio: [], notas: '', activa: true,
-          _email_original: '',
-        };
-      },
-
-      abrirCrear() {
-        _modalStore.abierto = true;
-        const fd = this._formDataVacio();
-        this.formData = fd;
-        this.errorForm = '';
-        this.guardando = false;
-        this.enviandoReset = false;
-        this.chipInput = '';
-        // Notify Alpine in modal scope
-        window.dispatchEvent(new CustomEvent('staff:abrirModal', { detail: { formData: fd } }));
-        this.$nextTick(() => window.lucide?.createIcons());
-      },
-
-      async abrirEditar(emp) {
-        _modalStore.abierto = true;
-        const { empleada, error } = await obtenerEmpleada(emp.id);
-        if (error || !empleada) { this.mostrarToast('Error loading staff member.', 'error'); return; }
-
-        const fd = {
-          id:              empleada.id,
-          nombre:          empleada.nombre,
-          apellido:        empleada.apellido,
-          email:           empleada.usuarios?.email || '',
-          telefono:        empleada.telefono || '',
-          rol:             empleada.usuarios?.rol || 'empleada',
-          tipo_contrato:   empleada.tipo_contrato || '',
-          fecha_inicio:    empleada.fecha_inicio || '',
-          tipos_servicio:  [...(empleada.tipos_servicio || [])],
-          notas:           empleada.notas || '',
-          activa:          empleada.activa,
-          _usuario_id:     empleada.usuario_id,
-          _email_original: empleada.usuarios?.email || '',
-        };
-        this.formData = fd;
-        this.errorForm = '';
-        this.guardando = false;
-        this.enviandoReset = false;
-        this.chipInput = '';
-        window.dispatchEvent(new CustomEvent('staff:abrirModal', { detail: { formData: fd } }));
-        this.$nextTick(() => window.lucide?.createIcons());
-      },
-
-      cerrarModal() {
-        _modalStore.abierto = false;
-      },
-
-      // ── Save
-      async guardar() {
-        this.errorForm = '';
-        if (!this.formData.nombre?.trim())    { this.errorForm = 'First name is required.'; return; }
-        if (!this.formData.apellido?.trim())  { this.errorForm = 'Last name is required.'; return; }
-        if (!this.formData.rol)               { this.errorForm = 'System role is required.'; return; }
-        if (!this.formData.id && !this.formData.email?.trim()) {
-          this.errorForm = 'Email is required.'; return;
-        }
-
-        this.guardando = true;
-        let error;
-
-        if (!this.formData.id) {
-          // CREATE
-          const resultado = await crearEmpleada({
-            email:          this.formData.email.trim(),
-            rol:            this.formData.rol,
-            nombre:         this.formData.nombre.trim(),
-            apellido:       this.formData.apellido.trim(),
-            telefono:       this.formData.telefono?.trim() || null,
-            tipo_contrato:  this.formData.tipo_contrato || null,
-            fecha_inicio:   this.formData.fecha_inicio || null,
-            tipos_servicio: this.formData.tipos_servicio,
-            notas:          this.formData.notas?.trim() || null,
-          });
-          error = resultado.error;
-        } else {
-          // UPDATE
-          const resultado = await actualizarEmpleada(this.formData.id, {
-            nombre:         this.formData.nombre.trim(),
-            apellido:       this.formData.apellido.trim(),
-            telefono:       this.formData.telefono?.trim() || null,
-            tipo_contrato:  this.formData.tipo_contrato || null,
-            fecha_inicio:   this.formData.fecha_inicio || null,
-            tipos_servicio: this.formData.tipos_servicio,
-            notas:          this.formData.notas?.trim() || null,
-            rol:            this.formData.rol,
-          });
-          // Handle active toggle
-          if (!resultado.error && this.formData.activa !== undefined) {
-            const { error: toggleError } = await toggleEmpleadaActiva(this.formData.id, this.formData.activa);
-            error = toggleError;
-          } else {
-            error = resultado.error;
-          }
-        }
-
-        this.guardando = false;
-
-        if (error) {
-          this.errorForm = traducirError(error);
-          return;
-        }
-
-        this.cerrarModal();
-        this.mostrarToast(
-          this.formData.id ? 'Staff member updated.' : 'Staff member created. Password reset email sent.',
-          'success'
-        );
-        window.dispatchEvent(new Event('staff:recarga'));
-      },
-
-      // ── Toggle active from table
-      confirmarToggle(emp) {
-        const accion = emp.activa ? 'deactivate' : 'activate';
-        if (!confirm(`${accion.charAt(0).toUpperCase() + accion.slice(1)} ${emp.nombre} ${emp.apellido}?`)) return;
-        this._toggleActiva(emp.id, !emp.activa);
-      },
-      async _toggleActiva(id, activa) {
-        const { error } = await toggleEmpleadaActiva(id, activa);
-        if (error) { this.mostrarToast(traducirError(error), 'error'); return; }
-        this.mostrarToast(activa ? 'Staff member activated.' : 'Staff member deactivated.', 'success');
-        await this.cargar();
-      },
-
-      // ── Send password reset
-      async enviarPasswordReset() {
-        const email = this.formData._email_original || this.formData.email;
-        if (!email) return;
-        this.enviandoReset = true;
-        const { error } = await reenviarPasswordReset(email);
-        this.enviandoReset = false;
-        if (error) { this.mostrarToast('Failed to send reset email.', 'error'); return; }
-        this.mostrarToast('Password reset email sent.', 'success');
-      },
-
-      // ── Chips
-      filtrarSugerencias() {
-        const val = this.chipInput.trim().toLowerCase();
-        this.sugerenciasFiltradas = this.tiposSugeridos.filter(s =>
-          s.toLowerCase().includes(val) &&
-          !this.formData.tipos_servicio.includes(s)
-        );
-        this.mostrarSugerencias = true;
-      },
-      addChip(val) {
-        const v = val.trim();
-        if (!v || this.formData.tipos_servicio.includes(v)) return;
-        this.formData.tipos_servicio = [...this.formData.tipos_servicio, v];
-        this.chipInput = '';
-        this.mostrarSugerencias = false;
-      },
-      addChipFromInput() {
-        if (this.chipInput.trim()) this.addChip(this.chipInput);
-      },
-      removeChip(idx) {
-        if (idx < 0) return;
-        this.formData.tipos_servicio = this.formData.tipos_servicio.filter((_, i) => i !== idx);
-      },
-
-      // ── Formatters
-      formatearFecha(iso) {
-        if (!iso) return '';
-        const d = new Date(iso + 'T00:00:00');
-        return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      },
-      badgeContrato(tipo) {
-        if (!tipo) return '';
-        const map = {
-          employee:   'badge-contract-employee',
-          contractor: 'badge-contract-contractor',
-          'part-time':'badge-contract-parttime',
-        };
-        return map[tipo] || '';
-      },
-      labelContrato(tipo) {
-        if (!tipo) return '—';
-        const map = { employee: 'Employee', contractor: 'Contractor', 'part-time': 'Part-time' };
-        return map[tipo] || tipo;
-      },
-
-      // ── Toast
-      mostrarToast(msg, tipo = 'success') {
-        const cont = document.getElementById('toast-container');
-        if (!cont) return;
-        const t = document.createElement('div');
-        t.className = `toast toast-${tipo}`;
-        t.textContent = msg;
-        cont.appendChild(t);
-        setTimeout(() => t.classList.add('toast-visible'), 10);
-        setTimeout(() => {
-          t.classList.remove('toast-visible');
-          setTimeout(() => t.remove(), 300);
-        }, 3500);
-      },
-    };
-  };
-
-  // ── Alpine store for modal open/close (bridge between scopes)
-  document.addEventListener('alpine:init', () => {
-    Alpine.store('staffModal', _modalStore);
-  });
-
-  // ── Load Alpine
-  await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js');
-
-  // ── Init panel shell
   (async () => {
-    await iniciarPanel({
+    const usuario = await iniciarPanel({
       rolesPermitidos: ['superadmin', 'owner', 'admin'],
       itemActivo: 'staff',
       tituloHeader: 'Staff',
     });
+    if (!usuario) return;
+    const VER_DINERO = puedeVerDinero(usuario.rol);
+
+    const _modalStore = {
+      abierto: false,
+      datos: null,
+      callbacks: { onGuardar: null, onCerrar: null }
+    };
+
+    window.staffPage = function () {
+      return {
+        verDinero: VER_DINERO,
+
+        // ── Table state
+        empleadas: [],
+        cargando: true,
+        total: 0,
+        pagina: 1,
+        porPagina: 20,
+        filtros: { busqueda: '', estado: 'all', tipo_contrato: 'all' },
+
+        // ── Modal state
+        formData: {},
+        errorForm: '',
+        guardando: false,
+        enviandoReset: false,
+
+        // ── Chips state
+        chipInput: '',
+        mostrarSugerencias: false,
+        sugerenciasFiltradas: [],
+        tiposSugeridos: TIPOS_SERVICIO_SUGERIDOS,
+
+        get totalPaginas() {
+          return Math.max(1, Math.ceil(this.total / this.porPagina));
+        },
+
+        async init() {
+          await this.cargar();
+          this.$watch('filtros', () => this.cargar());
+          this.$watch('pagina', () => this.cargar());
+          window.addEventListener('staff:recarga', () => this.cargar());
+          window.addEventListener('staff:abrirModal', (e) => {
+            this.formData           = e.detail.formData;
+            this.errorForm          = '';
+            this.guardando          = false;
+            this.enviandoReset      = false;
+            this.chipInput          = '';
+            this.mostrarSugerencias = false;
+          });
+        },
+
+        async cargar() {
+          this.cargando = true;
+          const { data, count, error } = await listarEmpleadas({
+            busqueda:       this.filtros.busqueda,
+            estado:         this.filtros.estado,
+            tipo_contrato:  this.filtros.tipo_contrato,
+            pagina:         this.pagina,
+            porPagina:      this.porPagina,
+          });
+          this.empleadas = data;
+          this.total = count;
+          this.cargando = false;
+          this.$nextTick(() => window.lucide?.createIcons());
+        },
+
+        resetPagina() { this.pagina = 1; },
+        irPagina(n)    { this.pagina = n; },
+
+        _formDataVacio() {
+          return {
+            id: null,
+            nombre: '', apellido: '', email: '', telefono: '',
+            rol: 'empleada', tipo_contrato: '', fecha_inicio: '',
+            tipos_servicio: [], notas: '', tarifa_hora: '', activa: true,
+            _email_original: '',
+          };
+        },
+
+        abrirCrear() {
+          _modalStore.abierto = true;
+          const fd = this._formDataVacio();
+          this.formData = fd;
+          this.errorForm = '';
+          this.guardando = false;
+          this.enviandoReset = false;
+          this.chipInput = '';
+          window.dispatchEvent(new CustomEvent('staff:abrirModal', { detail: { formData: fd } }));
+          this.$nextTick(() => window.lucide?.createIcons());
+        },
+
+        async abrirEditar(emp) {
+          _modalStore.abierto = true;
+          const { empleada, error } = await obtenerEmpleada(emp.id);
+          if (error || !empleada) { this.mostrarToast('Error loading staff member.', 'error'); return; }
+
+          const fd = {
+            id:              empleada.id,
+            nombre:          empleada.usuarios?.nombre || '',
+            apellido:        empleada.usuarios?.apellido || '',
+            email:           empleada.usuarios?.email || '',
+            telefono:        empleada.usuarios?.telefono || '',
+            rol:             empleada.usuarios?.rol || 'empleada',
+            tipo_contrato:   empleada.tipo_contrato || '',
+            fecha_inicio:    empleada.fecha_inicio || '',
+            tipos_servicio:  [...(empleada.tipos_servicio || [])],
+            notas:           empleada.notas || '',
+            tarifa_hora:     empleada.tarifa_hora ?? '',
+            activa:          empleada.usuarios?.activo ?? true,
+            _usuario_id:     empleada.usuario_id,
+            _email_original: empleada.usuarios?.email || '',
+          };
+          this.formData = fd;
+          this.errorForm = '';
+          this.guardando = false;
+          this.enviandoReset = false;
+          this.chipInput = '';
+          window.dispatchEvent(new CustomEvent('staff:abrirModal', { detail: { formData: fd } }));
+          this.$nextTick(() => window.lucide?.createIcons());
+        },
+
+        cerrarModal() {
+          _modalStore.abierto = false;
+        },
+
+        async guardar() {
+          this.errorForm = '';
+          if (!this.formData.nombre?.trim())   { this.errorForm = 'First name is required.'; return; }
+          if (!this.formData.apellido?.trim()) { this.errorForm = 'Last name is required.'; return; }
+          if (!this.formData.rol)              { this.errorForm = 'System role is required.'; return; }
+          if (!this.formData.id && !this.formData.email?.trim()) {
+            this.errorForm = 'Email is required.'; return;
+          }
+
+          this.guardando = true;
+          let error;
+
+          if (!this.formData.id) {
+            const resultado = await crearEmpleada({
+              email:          this.formData.email.trim(),
+              rol:            this.formData.rol,
+              nombre:         this.formData.nombre.trim(),
+              apellido:       this.formData.apellido.trim(),
+              telefono:       this.formData.telefono?.trim() || null,
+              tipo_contrato:  this.formData.tipo_contrato || null,
+              fecha_inicio:   this.formData.fecha_inicio || null,
+              tipos_servicio: this.formData.tipos_servicio,
+              notas:          this.formData.notas?.trim() || null,
+              tarifa_hora:    this.formData.tarifa_hora === '' ? null : Number(this.formData.tarifa_hora),
+            });
+            error = resultado.error;
+          } else {
+            const resultado = await actualizarEmpleada(this.formData.id, {
+              nombre:         this.formData.nombre.trim(),
+              apellido:       this.formData.apellido.trim(),
+              telefono:       this.formData.telefono?.trim() || null,
+              tipo_contrato:  this.formData.tipo_contrato || null,
+              fecha_inicio:   this.formData.fecha_inicio || null,
+              tipos_servicio: this.formData.tipos_servicio,
+              notas:          this.formData.notas?.trim() || null,
+              tarifa_hora:    this.formData.tarifa_hora === '' ? null : Number(this.formData.tarifa_hora),
+              rol:            this.formData.rol,
+            });
+            if (!resultado.error && this.formData.activa !== undefined) {
+              const { error: toggleError } = await toggleEmpleadaActiva(this.formData.id, this.formData.activa);
+              error = toggleError;
+            } else {
+              error = resultado.error;
+            }
+          }
+
+          this.guardando = false;
+          if (error) { this.errorForm = traducirError(error); return; }
+
+          this.cerrarModal();
+          this.mostrarToast(
+            this.formData.id ? 'Staff member updated.' : 'Staff member created. Password reset email sent.',
+            'success'
+          );
+          window.dispatchEvent(new Event('staff:recarga'));
+        },
+
+        confirmarToggle(emp) {
+          const accion = emp.usuarios?.activo ? 'deactivate' : 'activate';
+          if (!confirm(`${accion.charAt(0).toUpperCase() + accion.slice(1)} ${emp.usuarios?.nombre} ${emp.usuarios?.apellido}?`)) return;
+          this._toggleActiva(emp.id, !emp.usuarios?.activo);
+        },
+        async _toggleActiva(id, activa) {
+          const { error } = await toggleEmpleadaActiva(id, activa);
+          if (error) { this.mostrarToast(traducirError(error), 'error'); return; }
+          this.mostrarToast(activa ? 'Staff member activated.' : 'Staff member deactivated.', 'success');
+          await this.cargar();
+        },
+
+        async enviarPasswordReset() {
+          const email = this.formData._email_original || this.formData.email;
+          if (!email) return;
+          this.enviandoReset = true;
+          const { error } = await reenviarPasswordReset(email);
+          this.enviandoReset = false;
+          if (error) { this.mostrarToast('Failed to send reset email.', 'error'); return; }
+          this.mostrarToast('Password reset email sent.', 'success');
+        },
+
+        filtrarSugerencias() {
+          const val = this.chipInput.trim().toLowerCase();
+          this.sugerenciasFiltradas = this.tiposSugeridos.filter(s =>
+            s.toLowerCase().includes(val) &&
+            !this.formData.tipos_servicio.includes(s)
+          );
+          this.mostrarSugerencias = true;
+        },
+        addChip(val) {
+          const v = val.trim();
+          if (!v || this.formData.tipos_servicio.includes(v)) return;
+          this.formData.tipos_servicio = [...this.formData.tipos_servicio, v];
+          this.chipInput = '';
+          this.mostrarSugerencias = false;
+        },
+        addChipFromInput() {
+          if (this.chipInput.trim()) this.addChip(this.chipInput);
+        },
+        removeChip(idx) {
+          if (idx < 0) return;
+          this.formData.tipos_servicio = this.formData.tipos_servicio.filter((_, i) => i !== idx);
+        },
+
+        formatearFecha(iso) {
+          if (!iso) return '';
+          const d = new Date(iso + 'T00:00:00');
+          return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        },
+        badgeContrato(tipo) {
+          if (!tipo) return '';
+          const map = {
+            employee:    'badge-contract-employee',
+            contractor:  'badge-contract-contractor',
+            'part-time': 'badge-contract-parttime',
+          };
+          return map[tipo] || '';
+        },
+        labelContrato(tipo) {
+          if (!tipo) return '—';
+          const map = { employee: 'Employee', contractor: 'Contractor', 'part-time': 'Part-time' };
+          return map[tipo] || tipo;
+        },
+
+        mostrarToast(msg, tipo = 'success') {
+          const cont = document.getElementById('toast-container');
+          if (!cont) return;
+          const t = document.createElement('div');
+          t.className = `toast toast-${tipo}`;
+          t.textContent = msg;
+          cont.appendChild(t);
+          setTimeout(() => t.classList.add('toast-visible'), 10);
+          setTimeout(() => {
+            t.classList.remove('toast-visible');
+            setTimeout(() => t.remove(), 300);
+          }, 3500);
+        },
+      };
+    };
+
+    document.addEventListener('alpine:init', () => {
+      Alpine.store('staffModal', _modalStore);
+    });
+
+    const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js')).default;
+    window.Alpine = Alpine;
+    Alpine.start();
   })();
 </script>
 

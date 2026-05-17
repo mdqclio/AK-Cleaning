@@ -54,11 +54,13 @@ Cada módulo importa el helper, calcula `VER_DINERO` después de `iniciarPanel`,
 - Filtros: cliente, edificio, tipo, estado
 - `panel/properties/index.html` + `panel/properties/index1.html` (variante, verificar cuál es la activa)
 
-### E — Staff ✅ (código listo, 17 empleadas cargadas sin auth)
-- Flujo create: signUp Auth → insert `usuarios` (rol='empleada') → insert `empleadas`
-- Contract type W2/1099; service types como chips
-- **17 empleadas cargadas en DB**: Andrea Manca + 16 nuevas, emails placeholder `@pending.local`, `auth_id = NULL`
-- Cuentas Supabase Auth se crean cuando hagamos Block L
+### E — Staff ✅ refactor schema-aware + tarifa_hora oculta (17 May 2026)
+- **Migration aplicada**: `empleadas` ahora tiene `fecha_inicio date`, `notas text`, `tarifa_hora numeric`.
+- **Refactor del módulo**: datos personales (nombre/apellido/telefono/activo) leen y escriben sobre `usuarios`; datos del rol (tipo_contrato/fecha_inicio/tipos_servicio/notas/tarifa_hora/disponibilidad/docs) sobre `empleadas`. Sin duplicación.
+- **Capa 1 aplicada**: campo "Hourly Rate" en form `x-show="verDinero"` — solo visible para owner/superadmin.
+- **17 empleadas existentes**: las 16 con rol='empleada' (auth_id=NULL, esperan Block L PWA) + Andrea Manca con rol='owner' (puede asignarse a OS porque tiene fila en empleadas).
+- Flujo create: signUp Auth → trigger crea usuarios → UPDATE usuarios (nombre/apellido/telefono/rol/activo) → INSERT empleadas (tipo_contrato/fecha_inicio/tipos_servicio/notas/tarifa_hora) → resetPasswordForEmail.
+- Toggle activa/inactiva: solo toca `usuarios.activo`.
 
 ### F — Providers ✅ (código listo, sin datos reales)
 - Con/sin app access; Tax compliance (W9/1099); Rating estrellas; Rubros como chips
