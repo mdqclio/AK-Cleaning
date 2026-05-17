@@ -201,7 +201,7 @@ Datos del **rol empleada** (perfil de trabajo). Los datos personales (nombre/ape
 - `descuento_total numeric NOT NULL` (default 0)
 - `tax_total numeric NOT NULL` (default 0)
 - `total_due numeric NOT NULL` (default 0) — **NO** `total`
-- `estado text NOT NULL` CHECK in ('borrador','generada','enviada','pagada','anulada'), default 'borrador'
+- `estado text NOT NULL` CHECK in ('borrador','generada','parcialmente_pagada','pagada','anulada'), default 'borrador' *(añadidos `parcialmente_pagada` y `pagada` en migración `factura_pagos_y_estados` — 17 May 2026)*
 - `pdf_url text`
 - `enviada_en timestamptz`, `enviada_a text` — **NO** `enviada_a_email`
 - `notas text`
@@ -222,6 +222,19 @@ Datos del **rol empleada** (perfil de trabajo). Los datos personales (nombre/ape
   - `for_service_period text`
   - `for_description text`
 
+### `factura_pagos` ✅ EXISTE EN SUPABASE (migración `factura_pagos_y_estados` — 17 May 2026)
+- `id uuid PK` (gen_random_uuid())
+- `factura_id uuid NOT NULL FK → facturas(id)` ON DELETE RESTRICT
+- `fecha date NOT NULL` (default current_date)
+- `monto numeric NOT NULL` CHECK (monto > 0)
+- `metodo text NOT NULL` — valores soportados: cash, check, transfer, zelle, venmo, credit_card, other
+- `referencia text NULLABLE`
+- `notas text NULLABLE`
+- `creado_en timestamptz NOT NULL` (default now())
+- `creado_por uuid NULLABLE FK → usuarios(id)`
+- Indexes: `idx_factura_pagos_factura_id`, `idx_factura_pagos_fecha`
+- RLS habilitado; policies replican las de `facturas` (migración `factura_pagos_rls`)
+
 ### `factura_lineas` ✅ EXISTE EN SUPABASE
 - `id uuid PK`, `factura_id uuid NOT NULL FK`
 - `os_id uuid NULLABLE FK`, `os_servicio_id uuid NULLABLE FK` (NULL en líneas manuales)
@@ -239,7 +252,7 @@ Datos del **rol empleada** (perfil de trabajo). Los datos personales (nombre/ape
 ## Tablas pendientes de confirmar
 - `recurrencias` (decisión A5 Opus)
 - `tareas`, `reportes` (Bloque K)
-- `factura_pagos`, `notas_credito` [VERIFICAR EN SUPABASE]
+- `notas_credito` [VERIFICAR EN SUPABASE]
 - `facturas_outbox` (V2)
 - `notificaciones` (V2)
 
@@ -264,6 +277,7 @@ Datos del **rol empleada** (perfil de trabajo). Los datos personales (nombre/ape
 | `siguiente_numero_factura()` | `integer` | FOR UPDATE atómico sobre `factura_counter.proximo_numero`. Counter actual: **1001**. **SECURITY DEFINER** (fix 15 May — `factura_counter` tiene RLS sin policies, INVOKER fallaba para usuarios autenticados). |
 | `devolver_numero_factura(p_numero integer)` | `boolean` | Rollback seguro: decrementa solo si `proximo_numero = p_numero + 1`. Devuelve `true` si decrementó, `false` si hubo concurrencia. **SECURITY DEFINER** (mismo fix). |
 | `siguiente_numero_nota_credito()` | `integer` | Idem para notas de crédito (sobre `nota_credito_counter`). **SECURITY DEFINER** (fix proactivo 15 May — mismo patrón). |
+| `recalcular_estado_factura(p_factura_id uuid)` | `text` | Suma `factura_pagos.monto` para la factura y actualiza `facturas.estado`: 0 pagado → 'generada', parcial → 'parcialmente_pagada', total ≥ total_due → 'pagada'. No recalcula si estado es 'borrador' o 'anulada'. **SECURITY DEFINER** (accede a `factura_pagos` con RLS). Se llama desde el cliente tras INSERT/DELETE en `factura_pagos`. |
 
 > **Regla**: cualquier función que acceda a una tabla con RLS habilitado y sin policies para usuarios autenticados DEBE ser `SECURITY DEFINER SET search_path = public`. Los counters (`factura_counter`, `nota_credito_counter`) son el caso típico.
 

@@ -71,3 +71,63 @@
 - UPDATE manual via MCP funcionó → problema era del cliente → fix preventivo aplicado
 
 ---
+
+## Tarea 3 — Block J Fase 4 (subset: registro de pagos)
+
+**Iniciada en sesión continuación** (sesión previa cerró codespace después de Tarea 2).
+
+### Estado del DB al inicio de Tarea 3 (verificado via MCP)
+
+Las migraciones habían sido aplicadas en la sesión previa:
+- `factura_pagos_y_estados` (20260517113411) — tabla `factura_pagos` ✅
+- `factura_pagos_rls` (20260517113419) — policies RLS ✅
+
+Constraint `facturas_estado_check` ya tenía los 5 estados. Función `recalcular_estado_factura()` ya existía usando `total_due` (no `total`). Ninguna acción de SQL fue necesaria.
+
+### Trabajo realizado
+
+**Frontend — `panel/invoices/js/invoices-api.js`:**
+- Agregadas al final: `METODOS_PAGO`, `listarPagos`, `crearPago`, `eliminarPago`, `obtenerResumenPagos`
+
+**Frontend — `panel/invoices/index.html`:**
+- Import actualizado con las 5 nuevas exports
+- State Alpine: `pagos`, `resumenPagos`, `formPago`, `guardandoPago`, `metodosPago`
+- `formDataVacio()`: agrega `total_due: 0`
+- `abrirEditar()`: mapea `total_due` desde factura; llama `cargarPagos()` si estado es generada/parcial/pagada
+- Métodos nuevos: `cargarPagos`, `registrarPago`, `eliminarPagoConfirmar`, `metodoLabel`
+- `estadoLabel`: agrega `parcialmente_pagada: 'Partial'`, corrige `anulada: 'Voided'`
+- Tab "Partial" agregado (reemplaza tab "Sent" en posición 3); `mapaEstado` actualizado
+- Sección Payments en modal: visible con `x-if` solo para estados generada/parcial/pagada
+  - Summary: Total Invoice / Total Paid / Balance Due
+  - Tabla de pagos con botón delete por fila
+  - Form Add Payment: fecha, monto, método (select), referencia, notas
+  - Form oculto cuando ya está `pagada`
+
+**CSS — `panel/invoices/css/invoices.css`:**
+- `.badge-status-parcialmente_pagada` (amber)
+- `.payments-summary` y `.payments-summary-*`
+- `.payments-table` con `th`/`td`
+- `.payment-form`
+
+### Tests MCP (Sección 6) — TODOS PASADOS ✅
+
+Factura de test: `#1007`, `id=e4956db2...`, `total_due=501.00`, estado inicial `generada`.
+
+| Paso | Input | Esperado | Real |
+|---|---|---|---|
+| 1 | INSERT pago 250.50 (transfer) | OK | ✅ id retornado |
+| 2 | recalcular_estado_factura | 'parcialmente_pagada' | ✅ |
+| 3 | SELECT estado | 'parcialmente_pagada' | ✅ |
+| 4 | INSERT pago 250.50 (check) + recalcular | 'pagada' | ✅ |
+| 5 | DELETE pago check + recalcular | 'parcialmente_pagada' | ✅ |
+| 6 | DELETE todos + recalcular | 'generada' | ✅ |
+
+Cleanup completo. Factura #1007 volvió a estado `generada`.
+
+### Decisiones técnicas tomadas
+
+- **Tabs vs dropdown para filtro estado**: el prompt pedía `<select filtros.estado>` pero el código ya usa tabs. Se agregó tab "Partial" al sistema de tabs existente (patrón consistente). Tab "Sent" eliminado de la barra porque no hay facturas en ese estado y SendGrid es Fase 4B.
+- **`total_due` vs `total`**: la función PG usa `total_due` (correcto). El frontend mapea `formData.total_due` en `abrirEditar`.
+- **Add Payment form oculto si `pagada`**: muestra la sección de pagos (historial) pero no permite agregar más.
+
+---

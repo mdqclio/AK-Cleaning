@@ -281,6 +281,72 @@ export async function listarPropiedadesCliente(cliente_id) {
   return { data: data || [], error };
 }
 
+// ─── PAYMENTS ────────────────────────────────────────
+
+export const METODOS_PAGO = ['cash', 'check', 'transfer', 'zelle', 'venmo', 'credit_card', 'other'];
+
+export async function listarPagos(facturaId) {
+  const { data, error } = await supabase
+    .from('factura_pagos')
+    .select('*, creado_por_usuario:creado_por(nombre, apellido)')
+    .eq('factura_id', facturaId)
+    .order('fecha', { ascending: true })
+    .order('creado_en', { ascending: true });
+  return { data: data || [], error };
+}
+
+export async function crearPago({ factura_id, fecha, monto, metodo, referencia, notas }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: usuarioRow } = await supabase
+    .from('usuarios').select('id').eq('auth_id', user.id).single();
+
+  const { data, error } = await supabase
+    .from('factura_pagos')
+    .insert({
+      factura_id,
+      fecha: fecha || new Date().toISOString().slice(0, 10),
+      monto: Number(monto),
+      metodo,
+      referencia: referencia || null,
+      notas: notas || null,
+      creado_por: usuarioRow?.id || null,
+    })
+    .select()
+    .single();
+
+  if (!error) {
+    await supabase.rpc('recalcular_estado_factura', { p_factura_id: factura_id });
+  }
+  return { data, error };
+}
+
+export async function eliminarPago(pagoId, facturaId) {
+  const { error } = await supabase.from('factura_pagos').delete().eq('id', pagoId);
+  if (!error) {
+    await supabase.rpc('recalcular_estado_factura', { p_factura_id: facturaId });
+  }
+  return { error };
+}
+
+export async function obtenerResumenPagos(facturaId, totalFactura) {
+  const { data, error } = await supabase
+    .from('factura_pagos')
+    .select('monto')
+    .eq('factura_id', facturaId);
+  if (error) return { resumen: null, error };
+  const total_pagado = (data || []).reduce((acc, p) => acc + Number(p.monto), 0);
+  const saldo = Number(totalFactura) - total_pagado;
+  return {
+    resumen: {
+      total_factura: Number(totalFactura),
+      total_pagado,
+      saldo,
+      cantidad_pagos: (data || []).length,
+    },
+    error: null,
+  };
+}
+
 // ─── ERROR HELPER ────────────────────────────────────
 
 export function traducirError(error) {

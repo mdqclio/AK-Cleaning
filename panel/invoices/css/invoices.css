@@ -120,6 +120,89 @@
   color: #b03a35;
 }
 
+.badge-status-parcialmente_pagada {
+  background: #fef3e0;
+  color: #c47d0e;
+}
+
+/* ─── Sección Payments ─── */
+.payments-summary {
+  display: flex;
+  gap: 16px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.payments-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 120px;
+}
+
+.payments-summary-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-soft);
+}
+
+.payments-summary-value {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.payments-summary-paid {
+  color: #2d7a4f;
+}
+
+.payments-summary-balance {
+  color: var(--color-danger);
+}
+
+.payments-summary-zero {
+  color: #2d7a4f;
+}
+
+.payments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-bottom: 14px;
+}
+
+.payments-table th {
+  text-align: left;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-soft);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.payments-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--color-surface);
+  color: var(--color-text);
+}
+
+.payments-table tr:last-child td {
+  border-bottom: none;
+}
+
+.payment-form {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 4px;
+}
+
 /* ─── Número de factura en tabla ─── */
 .inv-number {
   font-family: var(--font-display);

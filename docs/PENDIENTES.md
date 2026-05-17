@@ -61,7 +61,7 @@ Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cu
 
 ## Próximos bloques (pendientes de diseño + implementación)
 
-- **Block J Fase 4** (con Leonardo): Send to Client (SendGrid Edge Function) + registro de pagos (`factura_pagos`)
+- **Block J Fase 4 subset B** (con Leonardo): Send to Client (SendGrid Edge Function) — decisión de proveedor + dominio + generación de PDF para email. Subset A (registro de pagos) ya completado 17 May.
 - **Block J Fase 3 (futura)**: selección de OS no facturadas, auto-populate líneas desde `os_servicios`
 - **Block K**: Field Reports (empleadas/proveedores reportan a admin, con fotos)
 - **Block L**: PWA Empleada (mobile-first, login, agenda del día, checklist, field reports)
@@ -84,7 +84,8 @@ Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cu
 
 | Item | Cerrado | Referencia |
 |---|---|---|
-| Módulo Users (ABM admin/owner/compras) | ✅ 17 May | (este commit) |
+| Block J Fase 4 subset A (registro de pagos manual) | ✅ 17 May | (este commit) |
+| Módulo Users (ABM admin/owner/compras) | ✅ 17 May | commit `10990e9` |
 | Bloque E Staff — refactor schema mismatch + tarifa_hora Capa 1 | ✅ 17 May | commit `205d6db` |
 | Capa 1 permisos por rol (UI hide dinero) | ✅ 17 May | commit `085eed8` |
 | Block J Etapa 1 drafts ABM | ✅ 11 May | commit `8f0db13` |

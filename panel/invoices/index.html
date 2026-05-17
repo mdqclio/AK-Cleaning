@@ -26,7 +26,7 @@
           <div class="view-tabs">
             <button class="view-tab" :class="vista === 'drafts'    ? 'active' : ''" @click="cambiarVista('drafts')">Drafts</button>
             <button class="view-tab" :class="vista === 'generated' ? 'active' : ''" @click="cambiarVista('generated')">Generated</button>
-            <button class="view-tab" :class="vista === 'sent'      ? 'active' : ''" @click="cambiarVista('sent')">Sent</button>
+            <button class="view-tab" :class="vista === 'partial'   ? 'active' : ''" @click="cambiarVista('partial')">Partial</button>
             <button class="view-tab" :class="vista === 'paid'      ? 'active' : ''" @click="cambiarVista('paid')">Paid</button>
             <button class="view-tab" :class="vista === 'all'       ? 'active' : ''" @click="cambiarVista('all')">All</button>
           </div>
@@ -353,6 +353,121 @@
                   </div>
                 </div>
 
+                <!-- Payments -->
+                <template x-if="formData.id && ['generada','parcialmente_pagada','pagada'].includes(formData.estado)">
+                  <div class="form-section">
+                    <h3>
+                      <i data-lucide="credit-card"></i> Payments
+                      <span class="badge-estado" :class="`badge-status-${formData.estado}`"
+                            x-text="estadoLabel(formData.estado)"
+                            style="margin-left:8px;font-size:11px;vertical-align:middle"></span>
+                    </h3>
+
+                    <!-- Summary -->
+                    <div class="payments-summary">
+                      <div class="payments-summary-item">
+                        <span class="payments-summary-label">Total Invoice</span>
+                        <span class="payments-summary-value" x-text="formatMoneda(resumenPagos.total_factura)"></span>
+                      </div>
+                      <div class="payments-summary-item">
+                        <span class="payments-summary-label">Total Paid</span>
+                        <span class="payments-summary-value payments-summary-paid" x-text="formatMoneda(resumenPagos.total_pagado)"></span>
+                      </div>
+                      <div class="payments-summary-item">
+                        <span class="payments-summary-label">Balance Due</span>
+                        <span class="payments-summary-value"
+                              :class="resumenPagos.saldo <= 0 ? 'payments-summary-zero' : 'payments-summary-balance'"
+                              x-text="formatMoneda(resumenPagos.saldo)"></span>
+                      </div>
+                    </div>
+
+                    <!-- Lista de pagos -->
+                    <template x-if="pagos.length > 0">
+                      <table class="payments-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Method</th>
+                            <th style="text-align:right">Amount</th>
+                            <th>Reference</th>
+                            <th>Notes</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <template x-for="pago in pagos" :key="pago.id">
+                            <tr>
+                              <td x-text="formatFecha(pago.fecha)"></td>
+                              <td x-text="metodoLabel(pago.metodo)"></td>
+                              <td style="text-align:right" x-text="formatMoneda(pago.monto)"></td>
+                              <td x-text="pago.referencia || '—'"></td>
+                              <td x-text="pago.notas || '—'"></td>
+                              <td>
+                                <button class="invoice-line-row delete-btn"
+                                        style="width:26px;height:26px;border:none;background:transparent;cursor:pointer;color:var(--color-text-soft)"
+                                        @click="eliminarPagoConfirmar(pago.id)" title="Remove payment">
+                                  <i data-lucide="trash-2" style="width:13px;height:13px"></i>
+                                </button>
+                              </td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </template>
+                    <template x-if="pagos.length === 0">
+                      <p style="font-size:var(--text-sm);color:var(--color-text-soft);margin:8px 0 12px">No payments recorded yet.</p>
+                    </template>
+
+                    <!-- Formulario nuevo pago (oculto si ya está pagada) -->
+                    <template x-if="formData.estado !== 'pagada'">
+                      <div class="payment-form">
+                        <h4 style="font-size:var(--text-sm);font-weight:600;color:var(--color-text);margin:0 0 10px">Add Payment</h4>
+                        <div class="form-grid-3">
+                          <div class="field">
+                            <label class="field-label">Date</label>
+                            <input type="date" :value="formPago.fecha"
+                                   @change="formPago.fecha = $event.target.value">
+                          </div>
+                          <div class="field">
+                            <label class="field-label">Amount <span class="required">*</span></label>
+                            <input type="number" x-model="formPago.monto"
+                                   step="0.01" min="0.01" placeholder="0.00">
+                          </div>
+                          <div class="field">
+                            <label class="field-label">Method <span class="required">*</span></label>
+                            <select x-model="formPago.metodo">
+                              <template x-for="m in metodosPago" :key="m">
+                                <option :value="m" x-text="metodoLabel(m)"></option>
+                              </template>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="form-grid-2">
+                          <div class="field">
+                            <label class="field-label">Reference #</label>
+                            <input type="text" x-model="formPago.referencia"
+                                   placeholder="Check #, transfer ID...">
+                          </div>
+                          <div class="field">
+                            <label class="field-label">Notes</label>
+                            <input type="text" x-model="formPago.notas"
+                                   placeholder="Optional notes">
+                          </div>
+                        </div>
+                        <div style="margin-top:10px">
+                          <button class="btn btn-primary" @click="registrarPago()"
+                                  :disabled="guardandoPago"
+                                  style="font-size:13px;padding:7px 16px">
+                            <i data-lucide="plus" style="width:14px;height:14px"></i>
+                            <span x-text="guardandoPago ? 'Saving...' : 'Add Payment'"></span>
+                          </button>
+                        </div>
+                      </div>
+                    </template>
+
+                  </div>
+                </template>
+
               </div>
 
               <div class="modal-footer">
@@ -445,7 +560,8 @@
       listarFacturas, obtenerFactura, crearFactura, actualizarFactura,
       eliminarFactura, listarClientesActivos, listarPropiedadesCliente,
       traducirError, obtenerClienteParaFactura,
-      generarNumero, anularFactura
+      generarNumero, anularFactura,
+      listarPagos, crearPago, eliminarPago, obtenerResumenPagos, METODOS_PAGO
     } from './js/invoices-api.js';
 
     (async () => {
@@ -481,6 +597,12 @@
 
           toasts: [],
 
+          pagos: [],
+          resumenPagos: { total_factura: 0, total_pagado: 0, saldo: 0, cantidad_pagos: 0 },
+          formPago: { fecha: new Date().toISOString().slice(0, 10), monto: '', metodo: 'transfer', referencia: '', notas: '' },
+          guardandoPago: false,
+          metodosPago: METODOS_PAGO,
+
           // ─── Helpers de inicialización ───────────────
           formDataVacio() {
             return {
@@ -502,6 +624,7 @@
               notas: '',
               estado: 'borrador',
               pdf_url: null,
+              total_due: 0,
               version: 1
             };
           },
@@ -525,7 +648,7 @@
           async recargar() {
             const mapaEstado = {
               drafts: 'borrador', generated: 'generada',
-              sent: 'enviada', paid: 'pagada', all: 'all'
+              partial: 'parcialmente_pagada', paid: 'pagada', all: 'all',
             };
             const estado = mapaEstado[this.vista] || 'all';
 
@@ -596,7 +719,8 @@
           estadoLabel(e) {
             const m = {
               borrador: 'Draft', generada: 'Generated',
-              enviada: 'Sent', pagada: 'Paid', anulada: 'Anulada'
+              parcialmente_pagada: 'Partial', pagada: 'Paid',
+              enviada: 'Sent', anulada: 'Voided',
             };
             return m[e] || e;
           },
@@ -638,6 +762,7 @@
               notas:              factura.notas    || '',
               estado:             factura.estado,
               pdf_url:            factura.pdf_url  || null,
+              total_due:          Number(factura.total_due) || 0,
               version:            factura.version
             };
 
@@ -656,6 +781,13 @@
             }));
 
             if (this.lineas.length === 0) this.lineas = [this.lineaVacia()];
+
+            if (['generada', 'parcialmente_pagada', 'pagada'].includes(factura.estado)) {
+              await this.cargarPagos(factura.id, factura.total_due);
+            } else {
+              this.pagos = [];
+              this.resumenPagos = { total_factura: 0, total_pagado: 0, saldo: 0, cantidad_pagos: 0 };
+            }
 
             this.$nextTick(() => window.lucide?.createIcons());
           },
@@ -1009,6 +1141,58 @@
 
             this.mostrarToast('success', 'Draft saved');
             return facturaId;
+          },
+
+          // ─── Payments ────────────────────────────────
+          async cargarPagos(facturaId, totalDue) {
+            const { data, error } = await listarPagos(facturaId);
+            if (error) { this.mostrarToast('error', traducirError(error)); return; }
+            this.pagos = data;
+            const { resumen } = await obtenerResumenPagos(facturaId, totalDue);
+            if (resumen) this.resumenPagos = resumen;
+          },
+
+          async registrarPago() {
+            if (!this.formPago.monto || !Number.isFinite(Number(this.formPago.monto)) || Number(this.formPago.monto) <= 0) {
+              this.mostrarToast('error', 'Amount must be greater than 0');
+              return;
+            }
+            this.guardandoPago = true;
+            const { error } = await crearPago({
+              factura_id: this.formData.id,
+              fecha:      this.formPago.fecha,
+              monto:      this.formPago.monto,
+              metodo:     this.formPago.metodo,
+              referencia: this.formPago.referencia?.trim() || null,
+              notas:      this.formPago.notas?.trim() || null,
+            });
+            this.guardandoPago = false;
+            if (error) { this.mostrarToast('error', traducirError(error)); return; }
+            this.mostrarToast('success', 'Payment recorded');
+            this.formPago = { fecha: new Date().toISOString().slice(0, 10), monto: '', metodo: 'transfer', referencia: '', notas: '' };
+            await this.cargarPagos(this.formData.id, this.formData.total_due);
+            const { factura } = await obtenerFactura(this.formData.id);
+            if (factura) { this.formData.estado = factura.estado; this.formData.version = factura.version; }
+            await this.recargar();
+          },
+
+          async eliminarPagoConfirmar(pagoId) {
+            if (!confirm('Remove this payment?')) return;
+            const { error } = await eliminarPago(pagoId, this.formData.id);
+            if (error) { this.mostrarToast('error', traducirError(error)); return; }
+            this.mostrarToast('success', 'Payment removed');
+            await this.cargarPagos(this.formData.id, this.formData.total_due);
+            const { factura } = await obtenerFactura(this.formData.id);
+            if (factura) { this.formData.estado = factura.estado; this.formData.version = factura.version; }
+            await this.recargar();
+          },
+
+          metodoLabel(m) {
+            const labels = {
+              cash: 'Cash', check: 'Check', transfer: 'Transfer',
+              zelle: 'Zelle', venmo: 'Venmo', credit_card: 'Credit Card', other: 'Other',
+            };
+            return labels[m] || m;
           },
 
           // ─── Toasts ──────────────────────────────────

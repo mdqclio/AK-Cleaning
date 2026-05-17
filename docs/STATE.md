@@ -114,9 +114,19 @@ Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total 
 - **Bug residual del commit original `02ae9c5`**: PDF vacío (~3KB). Causa: `#pdf-render-area` tenía `position:fixed; left:-9999px` → html2canvas no capturaba el elemento (fuera del viewport). Fix aplicado en `78e5b89`: `position:absolute`. El chain `.from(container)` estuvo presente desde `02ae9c5` (no era el bug).
 - **Listo para validar en Mac** (bugs de DB corregidos, logs de diagnóstico removidos en `HEAD`)
 
-**Fases 3 y 4 — pendientes (Fase 4 se hace con Leonardo)**
+**Etapa 3 — Registro de pagos manual ✅ (17 May 2026)**
+- Tabla `factura_pagos` (factura_id, fecha, monto, metodo, referencia, notas, creado_por).
+- Nuevos estados `parcialmente_pagada` y `pagada` en `facturas.estado` (constraint actualizado).
+- Función `recalcular_estado_factura(uuid)` SECURITY DEFINER: cliente la invoca tras INSERT/DELETE en `factura_pagos`, actualiza estado automáticamente.
+- UI dentro del modal de factura: sección Payments (resumen Total Invoice/Total Paid/Balance + tabla de pagos + form Add Payment). Visible si `estado IN ('generada','parcialmente_pagada','pagada')`. Form oculto si ya está `pagada`.
+- Tab nuevo "Partial" en la lista de facturas.
+- Badge `Partial` con color amber para `parcialmente_pagada`.
+- Métodos soportados: cash, check, transfer, zelle, venmo, credit_card, other.
+- NO toca: Generate Final, Void, Delete Draft, flujo HTML+print.
+
+**Fase 4 subset B — pendiente con Leonardo**
 - Fase 3 (pendiente): selección de OS no facturadas, auto-populate líneas desde `os_servicios`
-- Fase 4 (pendiente): Send to Client (SendGrid Edge Function) + registro de pagos (`factura_pagos`)
+- Fase 4 subset B (pendiente): Send to Client (SendGrid Edge Function) + decisión proveedor + dominio
 
 ### [N] — Users module ✅ (17 May 2026)
 - Listado, búsqueda por nombre/apellido/email, filtros rol/estado, paginación 20/pág
