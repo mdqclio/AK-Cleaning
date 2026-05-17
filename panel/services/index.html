@@ -101,7 +101,7 @@
                   </span>
                 </div>
 
-                <div class="service-card-price">
+                <div class="service-card-price" x-show="verDinero">
                   <template x-if="s.tarifa_vigente">
                     <span class="service-card-price-amount" x-text="fmtPrecio(s.tarifa_vigente)"></span>
                   </template>
@@ -177,7 +177,7 @@
                 </div>
 
                 <!-- Pricing (solo edit — servicio debe existir antes de agregar tarifa) -->
-                <div class="form-section" x-show="formData.id">
+                <div class="form-section" x-show="verDinero && formData.id">
                   <h3><i data-lucide="dollar-sign"></i> Pricing</h3>
 
                   <div class="rate-history">
@@ -292,6 +292,7 @@
 
   <script type="module">
     import { iniciarPanel } from '../js/panel-shell.js';
+    import { puedeVerDinero } from '../js/panel-config.js';
     import {
       listarServicios, obtenerServicio, crearServicio, actualizarServicio,
       toggleServicioActivo, crearTarifa, eliminarTarifa,
@@ -306,9 +307,11 @@
         tituloHeader: 'Services Catalog'
       });
       if (!usuario) return;
+      const VER_DINERO = puedeVerDinero(usuario.rol);
 
       window.servicesPage = function () {
         return {
+          verDinero: VER_DINERO,
           // Listado
           servicios:       [],
           cargando:        true,

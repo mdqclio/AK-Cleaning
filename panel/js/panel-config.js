@@ -31,8 +31,8 @@ export const MENU = [
   {
     seccion: 'Finance',
     items: [
-      { id: 'invoices',   label: 'Invoicing',        icono: 'file-text',        href: B + '/panel/invoices/',     roles: ['superadmin','owner','admin'] },
-      { id: 'payments',   label: 'Payments',         icono: 'dollar-sign',      href: B + '/panel/payments/',     roles: ['superadmin','owner','admin'] }
+      { id: 'invoices',   label: 'Invoicing',        icono: 'file-text',        href: B + '/panel/invoices/',     roles: ['superadmin','owner'] },
+      { id: 'payments',   label: 'Payments',         icono: 'dollar-sign',      href: B + '/panel/payments/',     roles: ['superadmin','owner'] }
     ]
   },
   {
@@ -66,4 +66,15 @@ export function menuParaRol(rol) {
       items: seccion.items.filter(item => item.roles.includes(rol))
     }))
     .filter(seccion => seccion.items.length > 0);
+}
+
+/**
+ * Roles autorizados a ver información de dinero (precios, tarifas, totales, facturas).
+ * Capa 1 (UI hide): los módulos importan puedeVerDinero(rol) y condicionan x-show.
+ * No es seguridad real — la Capa 2 (RLS en Supabase) está pendiente.
+ */
+export const ROLES_VEN_DINERO = ['superadmin', 'owner'];
+
+export function puedeVerDinero(rol) {
+  return ROLES_VEN_DINERO.includes(rol);
 }

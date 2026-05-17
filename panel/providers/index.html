@@ -103,7 +103,7 @@
                     <tr @click="abrirEditar(p.id)" style="cursor:pointer">
                       <td>
                         <div class="client-name" x-text="p.nombre_empresa"></div>
-                        <div x-show="p.tarifa_referencia" class="client-meta" x-text="p.tarifa_referencia"></div>
+                        <div x-show="verDinero && p.tarifa_referencia" class="client-meta" x-text="p.tarifa_referencia"></div>
                       </td>
                       <td x-text="p.contacto_nombre || '—'"></td>
                       <td x-text="p.telefono || '—'"></td>
@@ -211,7 +211,7 @@
                       <label class="field-label">Email</label>
                       <input type="email" x-model="formData.email" placeholder="contact@example.com">
                     </div>
-                    <div class="field">
+                    <div class="field" x-show="verDinero">
                       <label class="field-label">Reference Rate</label>
                       <input type="text" x-model="formData.tarifa_referencia" placeholder="e.g. $80/hour, Quote on demand">
                     </div>
@@ -416,6 +416,7 @@
 
   <script type="module">
     import { iniciarPanel } from '../js/panel-shell.js';
+    import { puedeVerDinero } from '../js/panel-config.js';
     import {
       listarProveedores, obtenerProveedor, crearProveedor,
       actualizarProveedor, toggleProveedorActivo,
@@ -430,10 +431,12 @@
         tituloHeader: 'Providers'
       });
       if (!usuario) return;
+      const VER_DINERO = puedeVerDinero(usuario.rol);
 
       // ── Definir componente DESPUÉS de iniciarPanel, ANTES de Alpine ──
       window.providersPage = function () {
         return {
+          verDinero: VER_DINERO,
           // Listado
           proveedores:    [],
           total:          0,

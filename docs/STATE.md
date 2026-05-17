@@ -7,6 +7,25 @@
 
 ---
 
+## Permisos por rol — visibilidad de información de dinero
+
+**Capa 1 (UI hide)** activa desde hoy. Solo `owner` y `superadmin` ven montos.
+
+Helper en `panel/js/panel-config.js`: `puedeVerDinero(rol)` → true para `['superadmin', 'owner']`.
+
+Cada módulo importa el helper, calcula `VER_DINERO` después de `iniciarPanel`, y expone `verDinero` en el state Alpine. Uso `x-show="verDinero"`.
+
+**Lo que NO ven `admin` / `empleada` / `proveedor` / `compras`:**
+- Sección "Finance" del sidebar entera (Invoicing + Payments)
+- Acceso por URL directa a `/panel/invoices/` y `/panel/payments/` — bloqueado por `protegerRuta`
+- Service Orders: columna "Total" en lista, "Unit Price" por línea, "Estimated Total", "Final Cost"
+- Services Catalog: precio en cards, sección "Pricing" del modal
+- Providers: campo `tarifa_referencia` en card de lista y modal
+
+**No es seguridad real** — los datos siguen llegando al cliente vía Supabase. Capa 2 pendiente.
+
+---
+
 ## Módulos en código
 
 ### A — Auth + Login ✅

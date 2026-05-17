@@ -76,7 +76,7 @@
                   <th>Services</th>
                   <th>Assigned</th>
                   <th>Status</th>
-                  <th style="text-align:right">Total</th>
+                  <th x-show="verDinero" style="text-align:right">Total</th>
                   <th></th>
                 </tr>
               </thead>
@@ -158,7 +158,7 @@
                             :style="estadoStyle(os.estado)"
                             x-text="estadoLabelTxt(os.estado)"></span>
                     </td>
-                    <td style="text-align:right">
+                    <td x-show="verDinero" style="text-align:right">
                       <strong x-text="formatMoneda(totalOS(os))"></strong>
                     </td>
                     <td>
@@ -266,7 +266,7 @@
                           <label class="field-label">Qty</label>
                           <input type="number" step="0.5" min="0" x-model="s.cantidad">
                         </div>
-                        <div class="field">
+                        <div class="field" x-show="verDinero">
                           <label class="field-label">Unit Price</label>
                           <input type="number" step="0.01" min="0" x-model="s.precio_unitario">
                         </div>
@@ -284,7 +284,7 @@
                     <i data-lucide="plus"></i> Add Service
                   </button>
 
-                  <div class="os-total" x-show="serviciosOS.length > 0">
+                  <div class="os-total" x-show="verDinero && serviciosOS.length > 0">
                     <span class="os-total-label">Estimated Total</span>
                     <span class="os-total-amount" x-text="formatMoneda(totalEstimado)"></span>
                   </div>
@@ -419,7 +419,7 @@
                         <option value="cancelada">Cancelled</option>
                       </select>
                     </div>
-                    <div class="field" x-show="formData.estado === 'completada'">
+                    <div class="field" x-show="verDinero && formData.estado === 'completada'">
                       <label class="field-label">Final Cost</label>
                       <input type="number" step="0.01" min="0" x-model="formData.costo_final"
                              :placeholder="`Estimated: ${formatMoneda(totalEstimado)}`">
@@ -469,6 +469,7 @@
 
   <script type="module">
     import { iniciarPanel } from '../js/panel-shell.js';
+    import { puedeVerDinero } from '../js/panel-config.js';
     import {
       listarOrdenes, obtenerOrden, crearOrden, actualizarOrden,
       listarClientesActivos, listarPropiedadesDeCliente, listarServiciosActivos,
@@ -494,9 +495,11 @@
         tituloHeader: 'Service Orders'
       });
       if (!usuario) return;
+      const VER_DINERO = puedeVerDinero(usuario.rol);
 
       window.ordersPage = function () {
         return {
+          verDinero: VER_DINERO,
           ordenes: [],
           total: 0,
           cargando: true,

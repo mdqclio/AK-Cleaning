@@ -73,6 +73,7 @@ Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cu
 
 ## Deuda técnica
 
+- **Capa 2 de permisos por rol (RLS columnas dinero)**: la Capa 1 (UI hide) está activa, pero los datos siguen viajando al cliente y son accesibles vía DevTools / API. Evaluar antes de las PWAs (Block L/M) si conviene RLS sobre columnas (`precio_unitario`, `costo_final`, `tarifa_referencia`, `servicio_tarifas.*`, `facturas.*`) o crear vistas filtradas por rol. Riesgo real cuando proveedores tengan acceso a la app.
 - **Rollback parcial Etapa 2**: si falla actualizar `pdf_url` tras upload exitoso, el archivo quedó en Storage pero `pdf_url` en DB es null. Usuario puede regenerar pero el número ya fue consumido. Evaluar en Etapa 3.
 - **Optimistic locking post-Generate**: `version` aumenta al generar. Si el modal tenía una version vieja, la siguiente operación falla. Flujo normal no es problema (abrirEditar siempre refetch). Documentado por si aparece en pruebas.
 - **Migrations faltantes en repo**: el schema completo se aplicó en Supabase pero no hay archivos SQL en el repo. Si se clona el schema o se restaura, habría que exportar desde Supabase Dashboard.
@@ -83,6 +84,7 @@ Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cu
 
 | Item | Cerrado | Referencia |
 |---|---|---|
+| Capa 1 permisos por rol (UI hide dinero) | ✅ 17 May | este commit |
 | Block J Etapa 1 drafts ABM | ✅ 11 May | commit `8f0db13` |
 | Block J Etapa 2 codeada | ✅ 11 May | commit `02ae9c5` |
 | Block J Fases 1-2-3 (schema v2 + bill_to + FOR + propiedad) | ✅ 15 May | commits `ea7d915` `e448235` + migración MCP |
