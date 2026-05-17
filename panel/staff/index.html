@@ -9,13 +9,16 @@
   <link rel="stylesheet" href="../css/panel.css" />
   <link rel="stylesheet" href="../clients/css/clients.css" />
   <link rel="stylesheet" href="css/staff.css" />
+  <script src="../../config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-
-<div id="panel-shell"></div>
-
-<div id="page-content">
-  <div x-data="staffPage()" x-init="init()" class="content-inner">
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="header" id="header"></header>
+      <div class="content">
+        <div x-data="staffPage()" x-init="init()" x-cloak class="content-inner">
 
     <!-- ── Toolbar ── -->
     <div class="toolbar">
@@ -168,8 +171,10 @@
       </button>
     </div>
 
-  </div><!-- /content-inner -->
-</div><!-- /page-content -->
+        </div><!-- /content-inner -->
+      </div><!-- /content -->
+    </main>
+  </div><!-- /panel-layout -->
 
 
 <!-- ════════════════════════════════════════════════════
