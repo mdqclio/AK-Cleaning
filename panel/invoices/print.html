@@ -31,9 +31,21 @@
     .invoice-wrapper {
       margin: 68px auto 40px;
       max-width: 820px;
+      min-height: 1024px;
       background: white;
       box-shadow: 0 2px 20px rgba(0,0,0,0.15);
       padding: 14mm 14mm 10mm 14mm;
+      display: flex;
+      flex-direction: column;
+    }
+    .invoice-main {
+      flex: 1 0 auto;
+    }
+    .invoice-footer {
+      margin-top: auto;
+      flex-shrink: 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
 
     #loading {
@@ -47,8 +59,13 @@
       .toolbar { display: none !important; }
       body { background: white; }
       .invoice-wrapper {
-        margin: 0; max-width: 100%;
-        box-shadow: none; padding: 0;
+        margin: 0;
+        max-width: 100%;
+        box-shadow: none;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
       }
       @page { size: letter portrait; margin: 0.5in; }
     }
@@ -161,6 +178,7 @@ function buildInvoiceHTML(factura, isPreview) {
   }).join('');
 
   return `
+<div class="invoice-main">
 <table style="width:100%;border-collapse:collapse;margin-bottom:8mm;">
   <tr>
     <td style="width:22%;vertical-align:top;">
@@ -234,10 +252,12 @@ function buildInvoiceHTML(factura, isPreview) {
     </td>
   </tr>
 </table>
+</div>
 
+<div class="invoice-footer">
 <table style="width:100%;border-collapse:collapse;border-top:2px solid #0a1628;">
   <tr>
-    <td style="width:50%;vertical-align:top;padding:7px 10px 7px 0;padding-top:7px;">
+    <td style="width:50%;vertical-align:top;padding:7px 10px 7px 0;padding-top:14px;">
       <div style="font-weight:bold;font-size:8px;text-transform:uppercase;letter-spacing:0.8px;color:#0a1628;margin-bottom:5px;">PAYMENT INFORMATION</div>
       <div style="font-size:9px;margin-bottom:3px;">Make checks payable to:</div>
       <div style="font-size:9px;font-weight:bold;margin-bottom:4px;">AK Property Management Concierge Services</div>
@@ -246,7 +266,7 @@ function buildInvoiceHTML(factura, isPreview) {
       <div style="font-size:9px;">Account Number: 9135063896</div>
       <div style="font-size:9px;">SWIFT Code: CITIUS33</div>
     </td>
-    <td style="width:50%;vertical-align:top;padding:7px 0 7px 10px;padding-top:7px;border-left:1px solid #e0e0e0;">
+    <td style="width:50%;vertical-align:top;padding:7px 0 7px 10px;padding-top:14px;border-left:1px solid #e0e0e0;">
       <div style="font-weight:bold;font-size:8px;text-transform:uppercase;letter-spacing:0.8px;color:#0a1628;margin-bottom:5px;">THANK YOU!</div>
       <div style="font-size:9px;margin-bottom:4px;">Thank you for choosing AK Concierge Services.</div>
       <div style="font-size:9px;">If you have any questions concerning this invoice,</div>
@@ -260,6 +280,7 @@ function buildInvoiceHTML(factura, isPreview) {
 
 <div style="text-align:center;margin-top:5mm;font-size:9px;color:#888;">
   www.akconciergeservices.com
+</div>
 </div>`;
 }
 </script>
