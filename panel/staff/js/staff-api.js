@@ -85,7 +85,7 @@ export async function crearEmpleada(datos) {
   const authUserId = authData.user?.id;
   if (!authUserId) return { empleada: null, error: { message: 'Auth user creation failed.' } };
 
-  await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 1500));
 
   const { data: usuarioRow, error: usuarioError } = await supabase
     .from('usuarios')
@@ -97,8 +97,9 @@ export async function crearEmpleada(datos) {
     })
     .eq('auth_id', authUserId)
     .select('id')
-    .single();
+    .maybeSingle();
   if (usuarioError) return { empleada: null, error: usuarioError };
+  if (!usuarioRow) return { empleada: null, error: { message: 'Profile row not created by trigger after signUp. Auth user_id=' + authUserId + '. Trigger fn_handle_new_user may have failed.' } };
 
   const { data: empleadaData, error: empleadaError } = await supabase
     .from('empleadas')
@@ -188,7 +189,11 @@ export function traducirError(error) {
   if (msg.includes('violates not-null'))       return 'Please complete all required fields.';
   if (msg.includes('permission'))              return 'You don\'t have permission for this action.';
   if (msg.includes('invalid email'))           return 'Invalid email address.';
-  return 'Something went wrong. Please try again.';
+  if (msg.includes('Email signups are disabled')) return 'Account creation is disabled in Supabase Auth settings. Enable Sign Ups in Auth → Providers → Email.';
+  if (msg.includes('Email rate limit exceeded'))  return 'Too many signup attempts. Wait a few minutes.';
+  if (msg.includes('Profile row not created by trigger')) return error.message;
+  const code = error.code ? `[${error.code}] ` : '';
+  return `${code}${msg.slice(0, 200)}`;
 }
 
 export function formatearNombreEmpleada(emp) {
