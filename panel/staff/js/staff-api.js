@@ -85,6 +85,13 @@ export async function crearEmpleada(datos) {
   const authUserId = authData.user?.id;
   if (!authUserId) return { empleada: null, error: { message: 'Auth user creation failed.' } };
 
+  // Detectar signUp silencioso: cuando Supabase Auth rechaza el signup
+  // (email duplicado, signups disabled, dominio bloqueado) NO devuelve authError
+  // pero el array identities viene vacío.
+  if (!authData.user?.identities || authData.user.identities.length === 0) {
+    return { empleada: null, error: { message: 'Signup rejected by Supabase Auth. Possible causes: (1) email already registered, (2) Sign Ups disabled in Dashboard, (3) email domain blocked. Check Supabase Auth → Providers → Email.' } };
+  }
+
   await new Promise(r => setTimeout(r, 1500));
 
   const { data: usuarioRow, error: usuarioError } = await supabase
