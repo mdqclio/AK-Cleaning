@@ -76,67 +76,82 @@ export async function crearEmpleada(datos) {
     tipo_contrato, fecha_inicio, tipos_servicio, notas, tarifa_hora,
   } = datos;
 
-  // Guardar sesión actual — signUp reemplaza la sesión con la del nuevo user
-  const { data: { session: sessionAntes } } = await supabase.auth.getSession();
+  let sessionAntes = null;
 
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password: crypto.randomUUID(),
-  });
-  if (authError) return { empleada: null, error: authError };
+  try {
+    // 1. Guardar sesión actual
+    const { data: { session } } = await supabase.auth.getSession();
+    sessionAntes = session;
 
-  const authUserId = authData.user?.id;
-  if (!authUserId) return { empleada: null, error: { message: 'Auth user creation failed.' } };
-
-  // Detectar signUp silencioso: cuando Supabase Auth rechaza el signup
-  // (email duplicado, signups disabled, dominio bloqueado) NO devuelve authError
-  // pero el array identities viene vacío.
-  if (!authData.user?.identities || authData.user.identities.length === 0) {
-    if (sessionAntes) await supabase.auth.setSession({ access_token: sessionAntes.access_token, refresh_token: sessionAntes.refresh_token });
-    return { empleada: null, error: { message: 'Email already registered or signup rejected. Try a different email.' } };
-  }
-
-  await new Promise(r => setTimeout(r, 1500));
-
-  // RPC SECURITY DEFINER: bypasa RLS (el signUp dejó la sesión como el nuevo user)
-  const { data: usuarioRow, error: rpcError } = await supabase
-    .rpc('actualizar_perfil_post_signup', {
-      p_auth_id:  authUserId,
-      p_nombre:   nombre,
-      p_apellido: apellido,
-      p_telefono: telefono || null,
-      p_rol:      rol,
+    // 2. signUp Auth (hijackea la sesión al nuevo user)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password: crypto.randomUUID(),
     });
-  if (rpcError) {
-    if (sessionAntes) await supabase.auth.setSession({ access_token: sessionAntes.access_token, refresh_token: sessionAntes.refresh_token });
-    return { empleada: null, error: rpcError };
+    if (authError) throw authError;
+
+    const authUserId = authData.user?.id;
+    if (!authUserId) throw { message: 'Auth user creation failed.' };
+
+    if (!authData.user?.identities || authData.user.identities.length === 0) {
+      throw { message: 'Email already registered or signup rejected. Try a different email.' };
+    }
+
+    await new Promise(r => setTimeout(r, 1500));
+
+    // 3. RPC SECURITY DEFINER: bypasa RLS (sesión sigue siendo la del nuevo user)
+    const { data: usuarioRow, error: rpcError } = await supabase
+      .rpc('actualizar_perfil_post_signup', {
+        p_auth_id:  authUserId,
+        p_nombre:   nombre,
+        p_apellido: apellido,
+        p_telefono: telefono || null,
+        p_rol:      rol,
+      });
+    if (rpcError) throw rpcError;
+    if (!usuarioRow) throw { message: 'RPC returned no row for auth_id=' + authUserId };
+
+    // 4. Restaurar sesión ANTES del INSERT a empleadas
+    //    El INSERT requiere tiene_acceso_admin() — no pasa con rol='empleada'
+    if (sessionAntes) {
+      await supabase.auth.setSession({
+        access_token:  sessionAntes.access_token,
+        refresh_token: sessionAntes.refresh_token,
+      });
+    }
+
+    // 5. INSERT empleadas (sesión restaurada, pasa RLS)
+    const { data: empleadaData, error: empleadaError } = await supabase
+      .from('empleadas')
+      .insert({
+        usuario_id:     usuarioRow.id,
+        tipo_contrato:  tipo_contrato || null,
+        fecha_inicio:   fecha_inicio || null,
+        tipos_servicio: tipos_servicio || [],
+        notas:          notas || null,
+        tarifa_hora:    tarifa_hora ?? null,
+      })
+      .select()
+      .single();
+    if (empleadaError) throw empleadaError;
+
+    // 6. resetPasswordForEmail (no afecta sesión)
+    await supabase.auth.resetPasswordForEmail(email);
+
+    return { empleada: empleadaData, error: null };
+
+  } catch (err) {
+    return { empleada: null, error: err };
+
+  } finally {
+    // Red de seguridad: restaurar sesión si algo falló entre signUp y el setSession explícito
+    if (sessionAntes) {
+      await supabase.auth.setSession({
+        access_token:  sessionAntes.access_token,
+        refresh_token: sessionAntes.refresh_token,
+      });
+    }
   }
-  if (!usuarioRow) {
-    if (sessionAntes) await supabase.auth.setSession({ access_token: sessionAntes.access_token, refresh_token: sessionAntes.refresh_token });
-    return { empleada: null, error: { message: 'RPC returned no row for auth_id=' + authUserId } };
-  }
-
-  const { data: empleadaData, error: empleadaError } = await supabase
-    .from('empleadas')
-    .insert({
-      usuario_id:     usuarioRow.id,
-      tipo_contrato:  tipo_contrato || null,
-      fecha_inicio:   fecha_inicio || null,
-      tipos_servicio: tipos_servicio || [],
-      notas:          notas || null,
-      tarifa_hora:    tarifa_hora ?? null,
-    })
-    .select()
-    .single();
-
-  // Restaurar sesión original antes de retornar (éxito o error)
-  if (sessionAntes) await supabase.auth.setSession({ access_token: sessionAntes.access_token, refresh_token: sessionAntes.refresh_token });
-
-  if (empleadaError) return { empleada: null, error: empleadaError };
-
-  await supabase.auth.resetPasswordForEmail(email);
-
-  return { empleada: empleadaData, error: null };
 }
 
 // ─── UPDATE ──────────────────────────────────────────
