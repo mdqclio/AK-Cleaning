@@ -61,7 +61,7 @@ export async function crearUsuario({ email, rol, nombre, apellido, telefono }) {
   // (email duplicado, signups disabled, dominio bloqueado) NO devuelve authError
   // pero el array identities viene vacío.
   if (!authData.user?.identities || authData.user.identities.length === 0) {
-    return { error: { message: 'Signup rejected by Supabase Auth. Possible causes: (1) email already registered, (2) Sign Ups disabled in Dashboard, (3) email domain blocked. Check Supabase Auth → Providers → Email.' } };
+    return { error: { message: 'Email already registered or signup rejected. Try a different email.' } };
   }
 
   // 2. Esperar trigger
