@@ -47,6 +47,9 @@ export async function obtenerUsuario(id) {
 // ─── CREATE ──────────────────────────────────────────
 
 export async function crearUsuario({ email, rol, nombre, apellido, telefono }) {
+  // Guardar sesión actual — signUp reemplaza la sesión con la del nuevo user
+  const { data: { session: sessionAntes } } = await supabase.auth.getSession();
+
   // 1. Crear cuenta Auth (trigger fn_handle_new_user crea fila en usuarios)
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -61,24 +64,28 @@ export async function crearUsuario({ email, rol, nombre, apellido, telefono }) {
   // (email duplicado, signups disabled, dominio bloqueado) NO devuelve authError
   // pero el array identities viene vacío.
   if (!authData.user?.identities || authData.user.identities.length === 0) {
+    if (sessionAntes) await supabase.auth.setSession({ access_token: sessionAntes.access_token, refresh_token: sessionAntes.refresh_token });
     return { error: { message: 'Email already registered or signup rejected. Try a different email.' } };
   }
 
   // 2. Esperar trigger
-  await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 1500));
 
-  // 3. Update usuarios: datos personales + rol (trigger crea la fila con defaults)
-  const { error: usrError } = await supabase
-    .from('usuarios')
-    .update({
-      nombre,
-      apellido,
-      telefono: telefono || null,
-      rol,
-      activo: true,
-    })
-    .eq('auth_id', authUserId);
-  if (usrError) return { error: usrError };
+  // 3. RPC SECURITY DEFINER: bypasa RLS (el signUp dejó la sesión como el nuevo user)
+  const { data: usuarioRow, error: rpcError } = await supabase
+    .rpc('actualizar_perfil_post_signup', {
+      p_auth_id:  authUserId,
+      p_nombre:   nombre,
+      p_apellido: apellido,
+      p_telefono: telefono || null,
+      p_rol:      rol,
+    });
+
+  // Restaurar sesión original antes de retornar (éxito o error)
+  if (sessionAntes) await supabase.auth.setSession({ access_token: sessionAntes.access_token, refresh_token: sessionAntes.refresh_token });
+
+  if (rpcError) return { error: rpcError };
+  if (!usuarioRow) return { error: { message: 'RPC returned no row for auth_id=' + authUserId } };
 
   // 4. Email de configuración de contraseña
   await supabase.auth.resetPasswordForEmail(email);
