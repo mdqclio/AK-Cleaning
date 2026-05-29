@@ -1,4 +1,4 @@
-# Pendientes — 15 May 2026
+# Pendientes — 29 May 2026
 
 ## Prioridad alta
 
@@ -33,29 +33,13 @@ Después de `git pull` en Mac, usando Chrome:
 
 ---
 
-### 2. Formalizar fix de `fn_handle_new_user` como migration
-
-El fix `SET search_path = public` fue aplicado manualmente desde Supabase Dashboard. No está en repo. Crear:
-
-```
-migrations/005_fix_handle_new_user_search_path.sql
-```
-
-Con el `CREATE OR REPLACE FUNCTION fn_handle_new_user()` completo tal como quedó. Crítico para reproducibilidad.
-
----
-
 ## Prioridad media
 
-### 3. Actualizar emails reales de empleadas
+### 2. Actualizar emails reales de empleadas
 
 16 empleadas tienen email placeholder `@pending.local`. Cuando Andy pase los emails:
 - Editar por UI en `/panel/staff` o por SQL via MCP
 - `usuarios.email` tiene UNIQUE constraint
-
-### 4. Verificar properties/index1.html
-
-Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cuál es la versión activa y si el otro puede borrarse.
 
 ---
 
@@ -84,6 +68,8 @@ Existe `panel/properties/index1.html` junto al `index.html` normal. Confirmar cu
 
 | Item | Cerrado | Referencia |
 |---|---|---|
+| Formalizar fix `fn_handle_new_user` como migration | ✅ 29 May | `migrations/005_fix_fn_handle_new_user_security_definer.sql` |
+| Verificar/eliminar `properties/index1.html` (huérfano buggeado) | ✅ 29 May | eliminado en housekeeping |
 | Block J Fase 4 subset A (registro de pagos manual) | ✅ 17 May | (este commit) |
 | Módulo Users (ABM admin/owner/compras) | ✅ 17 May | commit `10990e9` |
 | Bloque E Staff — refactor schema mismatch + tarifa_hora Capa 1 | ✅ 17 May | commit `205d6db` |

@@ -79,7 +79,7 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 - ✅ Bloque G: Services Catalog (14 servicios precargados [VERIFICAR EN SUPABASE])
 - ✅ Bloque H: Service Orders (validado con OS #1) — commit estable: `d4f91c6`
 - ✅ Bloque I: Checklist Templates + Checklist en OS (3 etapas incrementales)
-- 🔄 Bloque J: Invoicing — Etapa 1 ✅ VALIDADA · Etapa 2 ✅ CODEADA (schema v2, `e448235`) · Fase 4 pendiente con Leonardo
+- 🔄 Bloque J: Invoicing — Etapa 1 ✅ VALIDADA · Etapa 2 ✅ CODEADA (schema v2, `e448235`) · Etapa 3 (pagos manuales) ✅ CODEADA · pendientes: Fase 3 (auto-populate líneas desde OS) y Fase 4B (Send to Client / SendGrid)
 - ⏸ Bloques K-O: Field Reports, PWA Empleada, PWA Proveedor, Compras, Settings
 
 ## Sidebar real del panel
