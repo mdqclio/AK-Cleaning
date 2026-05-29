@@ -1,6 +1,6 @@
 # Estado actual del sistema
 
-**HEAD:** `2d38100` — 13 May 2026
+**HEAD:** `d733137` — 22 May 2026 (último trabajo funcional: fixes auth/staff) · housekeeping 29 May 2026 (eliminación de huérfanos + sync de docs)
 **Branch:** main
 **Live:** https://mdqclio.github.io/AK-Cleaning/
 **Codespace:** cuddly-spork (`/workspaces/AK-Cleaning`)
@@ -52,7 +52,7 @@ Cada módulo importa el helper, calcula `VER_DINERO` después de `iniciarPanel`,
 - Modal separado para gestionar edificios
 - Sección Access Information (código, portería, llave)
 - Filtros: cliente, edificio, tipo, estado
-- `panel/properties/index.html` + `panel/properties/index1.html` (variante, verificar cuál es la activa)
+- `panel/properties/index.html` (único activo; `index1.html` —variante vieja y buggeada— eliminado el 29 May 2026)
 
 ### E — Staff ✅ refactor schema-aware + tarifa_hora oculta (17 May 2026)
 - **Migration aplicada**: `empleadas` ahora tiene `fecha_inicio date`, `notas text`, `tarifa_hora numeric`.
@@ -160,7 +160,7 @@ Lista con tabs, búsqueda, filtro cliente, CRUD drafts, líneas manuales, Total 
 
 ## SQL fuera de migration (no está en repo)
 
-- **Fix `fn_handle_new_user`**: aplicado manualmente desde Dashboard. Agrega `SET search_path = public` al trigger. Pendiente formalizar como `migrations/005_fix_handle_new_user_search_path.sql`.
+- **Fix `fn_handle_new_user`**: ✅ formalizado en `migrations/005_fix_fn_handle_new_user_security_definer.sql` (29 May 2026). Agrega `SET search_path = public` + SECURITY DEFINER al trigger. También en repo: `migrations/006_rpc_actualizar_perfil_post_signup.sql`.
 - **Función `siguiente_numero_factura()`**: creada via MCP 11 May 2026.
 - **Función `devolver_numero_factura(p_numero integer)`**: creada via MCP 11 May 2026.
 - **17 empleadas**: insertadas via SQL en sesión 13 May 2026. Sin migration formal.
