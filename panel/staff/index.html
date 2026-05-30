@@ -41,9 +41,8 @@
 
         <select class="select" x-model="filtros.tipo_contrato" @change="resetPagina()">
           <option value="all">All Contract Types</option>
-          <option value="employee">Employee</option>
-          <option value="contractor">Contractor</option>
-          <option value="part-time">Part-time</option>
+          <option value="w2">W-2 (Employee)</option>
+          <option value="1099">1099 (Contractor)</option>
         </select>
       </div>
 
@@ -259,9 +258,8 @@
             <label class="form-label">Contract Type</label>
             <select class="select" x-model="formData.tipo_contrato">
               <option value="">— Select type —</option>
-              <option value="employee">Employee</option>
-              <option value="contractor">Contractor</option>
-              <option value="part-time">Part-time</option>
+              <option value="w2">W-2 (Employee)</option>
+              <option value="1099">1099 (Contractor)</option>
             </select>
           </div>
         </div>
@@ -641,15 +639,14 @@
         badgeContrato(tipo) {
           if (!tipo) return '';
           const map = {
-            employee:    'badge-contract-employee',
-            contractor:  'badge-contract-contractor',
-            'part-time': 'badge-contract-parttime',
+            w2:     'badge-contract-employee',
+            '1099': 'badge-contract-contractor',
           };
           return map[tipo] || '';
         },
         labelContrato(tipo) {
           if (!tipo) return '—';
-          const map = { employee: 'Employee', contractor: 'Contractor', 'part-time': 'Part-time' };
+          const map = { w2: 'W-2 (Employee)', '1099': '1099 (Contractor)' };
           return map[tipo] || tipo;
         },
 
