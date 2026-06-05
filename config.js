@@ -56,7 +56,15 @@ const APP_CONFIG = {
   },
 
   idioma_panel:    'en',
-  idiomas_apps:    ['es', 'en']
+  idiomas_apps:    ['es', 'en'],
+
+  // Flags de migración (ver docs/auditoria.md → Bloque 2).
+  // serverSideAccounts: cuando true, la creación de cuentas usa la Edge Function
+  // admin-create-user (server-side, sin hijack de sesión). Dejar false hasta
+  // deployar la función y validar el alta de cada rol con Leonardo.
+  features: {
+    serverSideAccounts: false
+  }
 };
 
 window.APP_CONFIG = APP_CONFIG;

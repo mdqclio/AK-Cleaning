@@ -191,6 +191,24 @@ Estos 6 son la prioridad absoluta. Todos giran alrededor del mismo problema: **e
 
 ---
 
+## 📍 Estado de remediación (actualizado 2026-06-05)
+
+### Bloque 1 — Cerrar la escalada ✅ CODEADO · ⏳ pendiente aplicar en DB
+- `migration 008` — guards en ambos RPCs post-signup (whitelist sin superadmin · `p_auth_id=auth.uid()` o admin · fila objetivo aún en rol='empleada'). **Falta `apply_migration` en Supabase.**
+- `migration 009` — `fn_handle_new_user` solo re-linkea si `auth_id IS NULL` → cierra takeover por email. **Falta aplicar.**
+- `supabase-client.js` — `window.supabase` solo en dev. ✅ live al pushear.
+- ⏳ **Verificar signup público ON/OFF** en Supabase Auth.
+
+### Bloque 2 — Versionar RLS + creación server-side 🔄 EN PROGRESO
+- `migration 010_export_security_snapshot.sql` — script para EXPORTAR las policies/triggers/funciones reales de la DB y versionarlas. **Correr y commitear `010_rls_policies_snapshot.sql`.** (No reconstruí a ciegas para no pisar lo que funciona.)
+- `supabase/functions/admin-create-user/` — Edge Function de alta server-side (verifica caller owner/superadmin, fija rol en server, sin hijack de sesión). **Falta deployar.** Ver su README.
+- `js/admin-api.js` + `config.js` flag `features.serverSideAccounts` (default **false**) — helper listo, sin cablear → prod intacto.
+- ⏳ **Cutover** (paso supervisado con testeo de Leonardo): deployar función → flag true → cablear `crearUsuario/crearEmpleada/crearProveedor` a `crearCuentaAdmin()` → deshabilitar signup público → (opcional) revocar EXECUTE de los RPCs `*_post_signup`. Esto cierra el residual empleada→owner.
+
+**Nota:** SCHEMA.md confirma que YA existen `fn_proteger_superadmin` (trigger anti-escalation), RLS `_admin_all` en todas las tablas, y `get_user_rol()` filtra `activo`. Es decir, el peor caso de la auditoría está parcialmente mitigado en la DB — pero **nada de eso está versionado**, por eso `migration 010` (exportar) es la prioridad para poder verificar realmente qué protege la base.
+
+---
+
 ## Notas finales
 
 - **No se pudo auditar la RLS real** porque no está en el repo. Toda evaluación de severidad de seguridad asume el peor caso (RLS ausente o permisiva). Si las policies en Supabase ya son estrictas, varios CRÍTICOS bajan a MEDIO — **pero eso no se puede verificar sin exportarlas.** Prioridad #1: versionarlas.
