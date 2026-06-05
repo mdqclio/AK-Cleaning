@@ -3,8 +3,8 @@
 Detalle por hallazgo en `docs/auditoria.md`.
 Última actualización: 2026-06-05 · Commits `5de5c95`→`da2f83c` en `main`.
 
-> **Estado: auditoría CERRADA.** Decisiones 10-14 todas resueltas. Queda solo
-> 1 toggle de dashboard (leaked-password) + validación visual en browser.
+> **Estado: auditoría CERRADA.** Decisiones 10-14 resueltas. Leaked-password =
+> riesgo aceptado (Pro-only, mitigado en free). Queda solo validación visual en browser.
 > Contexto: VPS Hetzner → GitHub. Nada en producción aún.
 
 ## Estado por bloque
@@ -17,16 +17,13 @@ Detalle por hallazgo en `docs/auditoria.md`.
 | 4 Robustez | ✅ |
 | 5 Higiene | ✅ |
 | 6 Lógica de negocio | ✅ |
-| Advisor Supabase | ✅ (queda solo leaked-password, dashboard) |
+| Advisor Supabase | ✅ (leaked-password = riesgo aceptado, Pro-only) |
 | Cosmético 15-18 | ✅ |
 | Decisiones | 10/11/12/13/14 ✅ todas resueltas |
 
 ---
 
 ## ⬜ Lo único que queda
-
-**Dashboard (1 click):**
-- Activar **Leaked password protection** (Auth → Password, HaveIBeenPwned).
 
 **Validación en browser (cuando puedas):**
 - Probar alta de cuenta (usuario / empleada / proveedor con app access) → confirmar que la Edge Function `admin-create-user` anda end-to-end.

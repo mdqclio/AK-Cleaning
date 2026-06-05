@@ -264,3 +264,21 @@ ALTO + MEDIOS + BAJOs de correctitud (no-seguridad) que no entraban en B1-B5:
 - **No se pudo auditar la RLS real** porque no está en el repo. Toda evaluación de severidad de seguridad asume el peor caso (RLS ausente o permisiva). Si las policies en Supabase ya son estrictas, varios CRÍTICOS bajan a MEDIO — **pero eso no se puede verificar sin exportarlas.** Prioridad #1: versionarlas.
 - Esta auditoría es estática (lectura de código). No se ejecutó la app ni se probaron exploits reales contra la base. La cadena de C1 está validada lógicamente, no ejecutada.
 - Para mañana, recomiendo empezar por el **Bloque 1** — es lo que convierte "cualquiera es superadmin" en "el sistema es defendible".
+
+---
+
+## Deuda técnica / limitaciones de plan
+
+### Leaked password protection — riesgo conocido y ACEPTADO (2026-06-05)
+El advisor de Supabase reporta `auth_leaked_password_protection` OFF (chequeo de
+contraseñas filtradas contra HaveIBeenPwned). **No es accionable en plan FREE**: el
+toggle "Prevent use of leaked passwords" es **Pro-only** ("Only available on Pro plan
+and above").
+
+**Mitigación aplicada en plan free** (Auth → Password):
+- Minimum password length = **8**.
+- Password requirements en la opción **más fuerte disponible**.
+
+**Estado:** riesgo aceptado por limitación de plan. **Deuda técnica:** al migrar a
+Supabase Pro, activar "Leaked password protection". Hasta entonces NO figura como
+pendiente accionable.
