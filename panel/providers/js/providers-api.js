@@ -111,7 +111,7 @@ export async function crearProveedor(datos, conApp = false, accountInfo = null) 
 
     // 4. Email de bienvenida con link de password
     await supabase.auth.resetPasswordForEmail(accountInfo.email, {
-      redirectTo: `${window.location.origin}/login.html`
+      redirectTo: `${window.location.origin}${window.APP_CONFIG?.basePath ?? ''}/login.html`
     });
   }
 
@@ -148,7 +148,10 @@ export async function toggleProveedorActivo(id, activo) {
   if (errProv) return { error: errProv };
 
   if (prov?.usuario_id) {
-    await supabase.from('usuarios').update({ activo }).eq('id', prov.usuario_id);
+    const { error: errUsr } = await supabase
+      .from('usuarios').update({ activo }).eq('id', prov.usuario_id);
+    // Estado inconsistente si el proveedor se desactiva pero su login sigue activo.
+    if (errUsr) return { error: errUsr };
   }
   return { error: null };
 }
@@ -157,7 +160,7 @@ export async function toggleProveedorActivo(id, activo) {
 
 export async function reenviarPasswordResetProveedor(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/login.html`
+    redirectTo: `${window.location.origin}${window.APP_CONFIG?.basePath ?? ''}/login.html`
   });
   return { error };
 }

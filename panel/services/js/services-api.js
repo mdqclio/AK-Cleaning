@@ -48,13 +48,15 @@ export async function listarServicios({ busqueda = '', categoria = 'all', estado
 
   const { data, error } = await query;
 
-  // Calcular tarifa vigente para cada servicio
+  // Calcular tarifa vigente para cada servicio. Si hay solapamiento, tomar la de
+  // vigente_desde más reciente (determinista, no "la primera que aparezca").
   const hoy = new Date().toISOString().split('T')[0];
   const enriquecidos = (data || []).map(s => {
-    const tarifaVigente = (s.servicio_tarifas || []).find(t =>
+    const vigentes = (s.servicio_tarifas || []).filter(t =>
       t.vigente_desde <= hoy && (!t.vigente_hasta || t.vigente_hasta >= hoy)
     );
-    return { ...s, tarifa_vigente: tarifaVigente || null };
+    vigentes.sort((a, b) => (a.vigente_desde < b.vigente_desde ? 1 : -1));
+    return { ...s, tarifa_vigente: vigentes[0] || null };
   });
 
   return { data: enriquecidos, error };
@@ -98,14 +100,19 @@ export async function toggleServicioActivo(id, activo) {
  * @returns {{ tarifa, error }}
  */
 export async function crearTarifa(servicio_id, datos) {
-  const ayer = new Date();
-  ayer.setDate(ayer.getDate() - 1);
-  const ayerStr = ayer.toISOString().split('T')[0];
+  // Cerrar la tarifa abierta anterior el día ANTES de que arranca la nueva, para
+  // no dejar gap (días sin tarifa) ni overlap. Si la nueva no trae vigente_desde,
+  // usar ayer. Cálculo en UTC para no desfasar por timezone.
+  const base = datos.vigente_desde
+    ? new Date(datos.vigente_desde + 'T00:00:00Z')
+    : new Date();
+  base.setUTCDate(base.getUTCDate() - 1);
+  const corteStr = base.toISOString().split('T')[0];
 
   // Cerrar tarifa anterior sin fecha fin
   await supabase
     .from('servicio_tarifas')
-    .update({ vigente_hasta: ayerStr })
+    .update({ vigente_hasta: corteStr })
     .eq('servicio_id', servicio_id)
     .is('vigente_hasta', null);
 

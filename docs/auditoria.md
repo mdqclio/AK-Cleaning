@@ -239,6 +239,26 @@ Sintaxis verificada con `node --check` (13 archivos).
 
 ---
 
+### Bloque 6 — Errores de lógica de negocio ✅ HECHO (cliente, live)
+ALTO + MEDIOS + BAJOs de correctitud (no-seguridad) que no entraban en B1-B5:
+- `orders-api.js listarOrdenes` — filtro `asignado` resuelto a `os_id` ANTES de paginar (`.in('id', …)`) → count y páginas correctos (era el ALTO).
+- `services-api.js` + `orders-api.js` — tarifa vigente: se toma la de `vigente_desde` más reciente ante solapamiento (determinista).
+- `services-api.js crearTarifa` — cierra la tarifa anterior en `vigente_desde - 1 día` (UTC), no en "ayer" → sin gap/overlap.
+- `orders-api.js` — vista `upcoming` incluye órdenes sin agendar (`programada_en` NULL); `listarStaffActivos` ordena con `nullsFirst:false`.
+- `properties-api.js` — `crearPropiedad` setea `creado_por` + null-guard; `eliminarEdificio` trata `count==null`/error como bloqueo (no borra).
+- `providers-api.js` — `toggleProveedorActivo` chequea el error del update a `usuarios`; reset links usan `basePath` (leftover de B4).
+- `clients-api.js` — `contarPropiedadesPorCliente` loguea el error en vez de tragárselo.
+- `invoices-api.js listarFacturas` — `pagina` con `parseInt`/`max(1,…)`.
+- `invoices/index.html` — `cargarPagos` coerce `total_due` null→0; `providers/index.html` — `:key="idx"` en chips de rubros (evita render roto por duplicados).
+
+**Dejados a propósito (necesitan decisión, no son bugs claros):**
+- `orders costo_final` cuando estado ≠ completada: forzar null descartaría lo que el usuario tipeó → decisión de UX.
+- Cabecera de factura con tax/descuento siempre 0: probablemente intencional (V1 = sin impuestos, CLAUDE.md).
+- `providers` toggle "app access" editable en edición sin efecto: es un feature gap (falta soportar alta de cuenta en update), no un bug de datos.
+- BAJOs cosméticos: `print.html` oculta $0 / `esc()` sin `'`; `toggleChecklistItem` stale; DST en `datetimeLocalToISO`; concat de dirección. Bajo impacto.
+
+---
+
 ## Notas finales
 
 - **No se pudo auditar la RLS real** porque no está en el repo. Toda evaluación de severidad de seguridad asume el peor caso (RLS ausente o permisiva). Si las policies en Supabase ya son estrictas, varios CRÍTICOS bajan a MEDIO — **pero eso no se puede verificar sin exportarlas.** Prioridad #1: versionarlas.

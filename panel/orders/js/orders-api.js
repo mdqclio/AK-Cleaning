@@ -22,6 +22,19 @@ export async function listarOrdenes({
   porPagina = 20
 } = {}) {
 
+  // Filtro de asignado: resolver a una lista de os_id ANTES de paginar, para que
+  // el count y las páginas sean correctos (antes se filtraba en cliente tras el
+  // range → count inflado y páginas con menos filas / vacías).
+  let osIdsAsignado = null;
+  if (asignado !== 'all') {
+    const [tipo, aid] = asignado.split(':');
+    const col = tipo === 'staff' ? 'empleada_id' : 'proveedor_id';
+    const { data: asigRows } = await supabase
+      .from('os_asignados').select('os_id').eq(col, aid);
+    osIdsAsignado = [...new Set((asigRows || []).map(r => r.os_id))];
+    if (osIdsAsignado.length === 0) return { data: [], count: 0, error: null };
+  }
+
   let query = supabase
     .from('ordenes_servicio')
     .select(`
@@ -46,7 +59,9 @@ export async function listarOrdenes({
     query = query.gte('programada_en', inicioHoy.toISOString())
                  .lte('programada_en', finHoy.toISOString());
   } else if (vista === 'upcoming') {
-    query = query.gte('programada_en', ahora.toISOString());
+    // Incluye también las órdenes sin agendar (programada_en NULL = pendiente),
+    // que antes quedaban invisibles en today/upcoming/past.
+    query = query.or(`programada_en.gte.${ahora.toISOString()},programada_en.is.null`);
   } else if (vista === 'past') {
     query = query.lt('programada_en', ahora.toISOString());
   } else if (fechaDesde || fechaHasta) {
@@ -63,26 +78,15 @@ export async function listarOrdenes({
     query = query.or(`descripcion.ilike.${s},notas_internas.ilike.${s}`);
   }
 
+  if (osIdsAsignado) query = query.in('id', osIdsAsignado);
+
   query = query.order('programada_en', { ascending: vista !== 'past' });
   const desde = (pagina - 1) * porPagina;
   const hasta = desde + porPagina - 1;
   query = query.range(desde, hasta);
 
   const { data, count, error } = await query;
-
-  let filtered = data || [];
-  if (asignado !== 'all' && filtered.length > 0) {
-    const [tipo, id] = asignado.split(':');
-    filtered = filtered.filter(os =>
-      os.os_asignados?.some(a => {
-        if (tipo === 'staff') return a.empleada_id === id;
-        if (tipo === 'provider') return a.proveedor_id === id;
-        return false;
-      })
-    );
-  }
-
-  return { data: filtered, count: count || 0, error };
+  return { data: data || [], count: count || 0, error };
 }
 
 // ─── DETALLE ─────────────────────────────────────────
@@ -267,9 +271,12 @@ export async function listarServiciosActivos() {
 
   const hoy = new Date().toISOString().split('T')[0];
   const enriquecidos = (data || []).map(s => {
-    const tarifaVigente = (s.servicio_tarifas || []).find(t =>
+    // Si hay solapamiento de tarifas, tomar la de vigente_desde más reciente.
+    const vigentes = (s.servicio_tarifas || []).filter(t =>
       t.vigente_desde <= hoy && (!t.vigente_hasta || t.vigente_hasta >= hoy)
     );
+    vigentes.sort((a, b) => (a.vigente_desde < b.vigente_desde ? 1 : -1));
+    const tarifaVigente = vigentes[0];
     return {
       ...s,
       precio_actual: tarifaVigente?.precio || 0,
@@ -285,7 +292,7 @@ export async function listarStaffActivos() {
     .from('empleadas')
     .select('id, tipos_servicio, usuarios!inner(nombre, apellido, activo)')
     .eq('usuarios.activo', true)
-    .order('apellido', { foreignTable: 'usuarios' });
+    .order('apellido', { foreignTable: 'usuarios', nullsFirst: false });
   return { data: data || [], error };
 }
 

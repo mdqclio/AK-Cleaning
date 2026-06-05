@@ -222,7 +222,7 @@
                 <div class="form-section">
                   <h3><i data-lucide="tags"></i> Categories / Services</h3>
                   <div class="chips-input">
-                    <template x-for="(chip, idx) in formData.rubros" :key="chip">
+                    <template x-for="(chip, idx) in formData.rubros" :key="idx">
                       <span class="chip">
                         <span x-text="chip"></span>
                         <button type="button" @click="formData.rubros.splice(idx, 1)">

@@ -44,7 +44,8 @@ export async function listarFacturas({
 
   query = query.order('creado_en', { ascending: false });
 
-  const desde = (pagina - 1) * porPagina;
+  const pag = Math.max(1, parseInt(pagina, 10) || 1);   // pagina puede llegar como string desde Alpine
+  const desde = (pag - 1) * porPagina;
   const hasta = desde + porPagina - 1;
   query = query.range(desde, hasta);
 

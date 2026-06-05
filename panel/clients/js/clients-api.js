@@ -67,7 +67,10 @@ export async function contarPropiedadesPorCliente(clienteIds) {
     .select('cliente_id')
     .in('cliente_id', clienteIds)
     .eq('activa', true);
-  if (error) return {};
+  if (error) {
+    console.error('[clients] contarPropiedadesPorCliente:', error);
+    return {};
+  }
   const conteos = {};
   for (const p of data) conteos[p.cliente_id] = (conteos[p.cliente_id] || 0) + 1;
   return conteos;

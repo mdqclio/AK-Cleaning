@@ -783,7 +783,7 @@
             if (this.lineas.length === 0) this.lineas = [this.lineaVacia()];
 
             if (['generada', 'parcialmente_pagada', 'pagada'].includes(factura.estado)) {
-              await this.cargarPagos(factura.id, factura.total_due);
+              await this.cargarPagos(factura.id, Number(factura.total_due) || 0);
             } else {
               this.pagos = [];
               this.resumenPagos = { total_factura: 0, total_pagado: 0, saldo: 0, cantidad_pagos: 0 };

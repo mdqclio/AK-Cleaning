@@ -100,9 +100,14 @@ export async function obtenerPropiedad(id) {
  * @returns {{ propiedad, error }}
  */
 export async function crearPropiedad(datos) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { propiedad: null, error: { message: 'Session expired. Please sign in again.' } };
+  const { data: usuarioActual } = await supabase
+    .from('usuarios').select('id').eq('auth_id', user.id).single();
+
   const { data, error } = await supabase
     .from('propiedades')
-    .insert({ ...datos })
+    .insert({ ...datos, creado_por: usuarioActual?.id })
     .select()
     .single();
   return { propiedad: data, error };
@@ -192,10 +197,14 @@ export async function actualizarEdificio(id, datos) {
  * @returns {{ error }}
  */
 export async function eliminarEdificio(id) {
-  const { count } = await supabase
+  const { count, error: errCount } = await supabase
     .from('propiedades')
     .select('id', { count: 'exact', head: true })
     .eq('edificio_id', id);
+  // Si el count falló (count null), NO borrar: tratar como bloqueo, no como "0".
+  if (errCount || count == null) {
+    return { error: { message: 'Could not verify building usage. Please try again.' } };
+  }
   if (count > 0) {
     return { error: { message: `Cannot delete: ${count} property(ies) use this building.` } };
   }
