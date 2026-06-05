@@ -67,7 +67,7 @@ const APP_CONFIG = {
     // transactionalWrites: cuando true, las escrituras multi-tabla (facturas,
     // órdenes, contactos) usan los RPCs transaccionales de migration 011.
     // Dejar false hasta aplicar la migración y validar. Ver docs/auditoria.md → Bloque 3.
-    transactionalWrites: false
+    transactionalWrites: true
   }
 };
 
