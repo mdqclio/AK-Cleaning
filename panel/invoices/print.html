@@ -112,7 +112,12 @@ import { obtenerFactura } from './js/invoices-api.js';
     return;
   }
 
-  document.getElementById('invoice-area').innerHTML = buildInvoiceHTML(factura, isPreview);
+  // Datos de empresa/pago desde DB (config_empresa). Fallback a {} → el template
+  // usa los literales por defecto si la fila no existe o no hay acceso.
+  const { data: cfg } = await supabase
+    .from('config_empresa').select('*').eq('id', 1).maybeSingle();
+
+  document.getElementById('invoice-area').innerHTML = buildInvoiceHTML(factura, isPreview, cfg || {});
   document.getElementById('loading').style.display  = 'none';
   document.getElementById('invoice-area').style.display = 'block';
 
@@ -151,7 +156,25 @@ function esc(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function buildInvoiceHTML(factura, isPreview) {
+function buildInvoiceHTML(factura, isPreview, cfg = {}) {
+  // Empresa/pago desde config_empresa con fallback a los valores históricos.
+  const c = {
+    nombre_linea1:     cfg.nombre_linea1     || 'AK PROPERTY MANAGEMENT',
+    nombre_linea2:     cfg.nombre_linea2     || 'CONCIERGE SERVICES',
+    ciudad:            cfg.ciudad            || 'Miami Beach, FL 33140',
+    telefono:          cfg.telefono          || '786-253-7983',
+    email:             cfg.email             || 'akconciergeservices@gmail.com',
+    website:           cfg.website           || 'www.akconciergeservices.com',
+    payable_to:        cfg.payable_to        || 'AK Property Management Concierge Services',
+    banco:             cfg.banco             || 'Citibank',
+    routing:           cfg.routing           || '266086554',
+    account:           cfg.account           || '9135063896',
+    swift:             cfg.swift             || 'CITIUS33',
+    contacto_nombre:   cfg.contacto_nombre   || 'Andrea Manca',
+    contacto_telefono: cfg.contacto_telefono || '786-253-7983',
+    contacto_email:    cfg.contacto_email    || 'andy.flo@hotmail.com',
+  };
+
   const lineas = (factura.factura_lineas || []).sort((a, b) => (a.orden || 0) - (b.orden || 0));
   const filas  = [...lineas];
   while (filas.length < 10) filas.push(null);
@@ -186,11 +209,11 @@ function buildInvoiceHTML(factura, isPreview) {
            style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
     </td>
     <td style="width:45%;vertical-align:middle;text-align:center;padding:0 8px;">
-      <div style="font-size:11px;font-weight:bold;color:#0a1628;line-height:1.3;">AK PROPERTY MANAGEMENT</div>
-      <div style="font-size:11px;font-weight:bold;color:#0a1628;line-height:1.3;">CONCIERGE SERVICES</div>
-      <div style="margin-top:4px;font-size:9px;color:#555;">Miami Beach, FL 33140</div>
-      <div style="font-size:9px;color:#555;">786-253-7983</div>
-      <div style="font-size:9px;color:#555;">akconciergeservices@gmail.com</div>
+      <div style="font-size:11px;font-weight:bold;color:#0a1628;line-height:1.3;">${esc(c.nombre_linea1)}</div>
+      ${c.nombre_linea2 ? `<div style="font-size:11px;font-weight:bold;color:#0a1628;line-height:1.3;">${esc(c.nombre_linea2)}</div>` : ''}
+      <div style="margin-top:4px;font-size:9px;color:#555;">${esc(c.ciudad)}</div>
+      <div style="font-size:9px;color:#555;">${esc(c.telefono)}</div>
+      <div style="font-size:9px;color:#555;">${esc(c.email)}</div>
     </td>
     <td style="width:33%;vertical-align:top;text-align:right;">
       <div style="font-size:22px;font-weight:bold;color:#0a1628;letter-spacing:1px;margin-bottom:5px;">INVOICE</div>
@@ -260,26 +283,26 @@ function buildInvoiceHTML(factura, isPreview) {
     <td style="width:50%;vertical-align:top;padding:7px 10px 7px 0;padding-top:14px;">
       <div style="font-weight:bold;font-size:8px;text-transform:uppercase;letter-spacing:0.8px;color:#0a1628;margin-bottom:5px;">PAYMENT INFORMATION</div>
       <div style="font-size:9px;margin-bottom:3px;">Make checks payable to:</div>
-      <div style="font-size:9px;font-weight:bold;margin-bottom:4px;">AK Property Management Concierge Services</div>
-      <div style="font-size:9px;"><strong>Citibank</strong></div>
-      <div style="font-size:9px;">Routing Number: 266086554</div>
-      <div style="font-size:9px;">Account Number: 9135063896</div>
-      <div style="font-size:9px;">SWIFT Code: CITIUS33</div>
+      <div style="font-size:9px;font-weight:bold;margin-bottom:4px;">${esc(c.payable_to)}</div>
+      <div style="font-size:9px;"><strong>${esc(c.banco)}</strong></div>
+      <div style="font-size:9px;">Routing Number: ${esc(c.routing)}</div>
+      <div style="font-size:9px;">Account Number: ${esc(c.account)}</div>
+      <div style="font-size:9px;">SWIFT Code: ${esc(c.swift)}</div>
     </td>
     <td style="width:50%;vertical-align:top;padding:7px 0 7px 10px;padding-top:14px;border-left:1px solid #e0e0e0;">
       <div style="font-weight:bold;font-size:8px;text-transform:uppercase;letter-spacing:0.8px;color:#0a1628;margin-bottom:5px;">THANK YOU!</div>
-      <div style="font-size:9px;margin-bottom:4px;">Thank you for choosing AK Concierge Services.</div>
+      <div style="font-size:9px;margin-bottom:4px;">Thank you for choosing ${esc(c.nombre_linea1)}.</div>
       <div style="font-size:9px;">If you have any questions concerning this invoice,</div>
       <div style="font-size:9px;margin-bottom:4px;">please contact:</div>
-      <div style="font-size:9px;font-weight:bold;">Andrea Manca</div>
-      <div style="font-size:9px;">786-253-7983</div>
-      <div style="font-size:9px;">andy.flo@hotmail.com</div>
+      <div style="font-size:9px;font-weight:bold;">${esc(c.contacto_nombre)}</div>
+      <div style="font-size:9px;">${esc(c.contacto_telefono)}</div>
+      <div style="font-size:9px;">${esc(c.contacto_email)}</div>
     </td>
   </tr>
 </table>
 
 <div style="text-align:center;margin-top:5mm;font-size:9px;color:#888;">
-  www.akconciergeservices.com
+  ${esc(c.website)}
 </div>
 </div>`;
 }
