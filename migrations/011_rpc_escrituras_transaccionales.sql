@@ -144,8 +144,21 @@ DECLARE
   v_orden public.ordenes_servicio;
   v_item  jsonb;
 BEGIN
-  INSERT INTO public.ordenes_servicio
-  SELECT * FROM jsonb_populate_record(NULL::public.ordenes_servicio, p_datos)
+  -- INSERT con whitelist de columnas seteables por el cliente. NO usar SELECT *:
+  -- jsonb_populate_record(NULL, ...) devuelve NULL en las claves ausentes y el
+  -- SELECT * insertaría NULL explícito en id/numero/version/creado_en/estado,
+  -- pisando sus DEFAULT y violando NOT NULL. Acá omitimos esas columnas (toman
+  -- su default) y forzamos estado a 'borrador' si no viene.
+  INSERT INTO public.ordenes_servicio (
+    cliente_id, propiedad_id, recurrencia_id, os_padre_id, programada_en,
+    duracion_min, estado, descripcion, costo_estimado, costo_final,
+    notas_internas, google_calendar_event_id, creado_por
+  )
+  SELECT
+    r.cliente_id, r.propiedad_id, r.recurrencia_id, r.os_padre_id, r.programada_en,
+    r.duracion_min, COALESCE(r.estado, 'borrador'), r.descripcion, r.costo_estimado,
+    r.costo_final, r.notas_internas, r.google_calendar_event_id, r.creado_por
+  FROM jsonb_populate_record(NULL::public.ordenes_servicio, p_datos) r
   RETURNING * INTO v_orden;
 
   IF p_servicios IS NOT NULL AND jsonb_typeof(p_servicios) = 'array' THEN
