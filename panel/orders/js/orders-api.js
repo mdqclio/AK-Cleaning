@@ -4,6 +4,9 @@
 
 import { supabase } from '../../../js/supabase-client.js';
 
+// Flag: usar RPCs transaccionales (migration 011) cuando esté activo.
+const txOn = () => window.APP_CONFIG?.features?.transactionalWrites === true;
+
 // ─── LISTADO ─────────────────────────────────────────
 
 export async function listarOrdenes({
@@ -108,9 +111,34 @@ export async function obtenerOrden(id) {
 
 export async function crearOrden(datosOS, servicios, asignados) {
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { orden: null, error: { message: 'Session expired. Please sign in again.' } };
   const { data: usuarioActual } = await supabase
     .from('usuarios').select('id').eq('auth_id', user.id).single();
 
+  const filasSrv = servicios.map(s => ({
+    servicio_id: s.servicio_id,
+    cantidad: parseFloat(s.cantidad) || 1,
+    precio_unitario: parseFloat(s.precio_unitario) || 0,
+    notas: s.notas || null
+  }));
+  const filasAsig = asignados.map(a => ({
+    empleada_id: a.tipo === 'staff' ? a.id : null,
+    proveedor_id: a.tipo === 'provider' ? a.id : null,
+    rol_en_os: a.rol_en_os || null
+  }));
+
+  // Path transaccional: orden + servicios + asignados en una sola txn.
+  if (txOn()) {
+    const { data, error } = await supabase.rpc('crear_orden_completa', {
+      p_datos: { ...datosOS, creado_por: usuarioActual?.id },
+      p_servicios: filasSrv,
+      p_asignados: filasAsig
+    });
+    return { orden: data, error };
+  }
+
+  // Path legacy: si falla un insert de hijos, se borra la orden creada para no
+  // dejar una orden huérfana/incompleta.
   const { data: orden, error: errOS } = await supabase
     .from('ordenes_servicio')
     .insert({ ...datosOS, creado_por: usuarioActual?.id })
@@ -119,27 +147,22 @@ export async function crearOrden(datosOS, servicios, asignados) {
 
   if (errOS) return { orden: null, error: errOS };
 
-  if (servicios.length > 0) {
-    const filas = servicios.map(s => ({
-      os_id: orden.id,
-      servicio_id: s.servicio_id,
-      cantidad: parseFloat(s.cantidad) || 1,
-      precio_unitario: parseFloat(s.precio_unitario) || 0,
-      notas: s.notas || null
-    }));
-    const { error: errSrv } = await supabase.from('os_servicios').insert(filas);
-    if (errSrv) return { orden, error: errSrv };
+  if (filasSrv.length > 0) {
+    const { error: errSrv } = await supabase
+      .from('os_servicios').insert(filasSrv.map(f => ({ ...f, os_id: orden.id })));
+    if (errSrv) {
+      await supabase.from('ordenes_servicio').delete().eq('id', orden.id);
+      return { orden: null, error: errSrv };
+    }
   }
 
-  if (asignados.length > 0) {
-    const filas = asignados.map(a => ({
-      os_id: orden.id,
-      empleada_id: a.tipo === 'staff' ? a.id : null,
-      proveedor_id: a.tipo === 'provider' ? a.id : null,
-      rol_en_os: a.rol_en_os || null
-    }));
-    const { error: errAsig } = await supabase.from('os_asignados').insert(filas);
-    if (errAsig) return { orden, error: errAsig };
+  if (filasAsig.length > 0) {
+    const { error: errAsig } = await supabase
+      .from('os_asignados').insert(filasAsig.map(f => ({ ...f, os_id: orden.id })));
+    if (errAsig) {
+      await supabase.from('ordenes_servicio').delete().eq('id', orden.id);
+      return { orden: null, error: errAsig };
+    }
   }
 
   return { orden, error: null };
@@ -149,44 +172,60 @@ export async function crearOrden(datosOS, servicios, asignados) {
 
 export async function actualizarOrden(id, datosOS, servicios, asignados, version) {
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: { message: 'Session expired. Please sign in again.' } };
   const { data: usuarioActual } = await supabase
     .from('usuarios').select('id').eq('auth_id', user.id).single();
 
-  const { data: actual } = await supabase
-    .from('ordenes_servicio').select('version').eq('id', id).single();
-  if (actual?.version !== version) {
+  const filasSrv = servicios.map(s => ({
+    servicio_id: s.servicio_id,
+    cantidad: parseFloat(s.cantidad) || 1,
+    precio_unitario: parseFloat(s.precio_unitario) || 0,
+    notas: s.notas || null
+  }));
+  const filasAsig = asignados.map(a => ({
+    empleada_id: a.tipo === 'staff' ? a.id : null,
+    proveedor_id: a.tipo === 'provider' ? a.id : null,
+    rol_en_os: a.rol_en_os || null
+  }));
+
+  // Path transaccional: update + reemplazo de hijos atómico, con lock de version.
+  if (txOn()) {
+    const { data, error } = await supabase.rpc('actualizar_orden_completa', {
+      p_id: id,
+      p_datos: { ...datosOS, actualizado_por: usuarioActual?.id },
+      p_servicios: filasSrv,
+      p_asignados: filasAsig,
+      p_version: version
+    });
+    return { error };
+  }
+
+  // Path legacy endurecido: lock de version EN el UPDATE (no en SELECT previo).
+  const { data: upd, error: errOS } = await supabase
+    .from('ordenes_servicio')
+    .update({ ...datosOS, actualizado_por: usuarioActual?.id })
+    .eq('id', id)
+    .eq('version', version)
+    .select('id');
+
+  if (errOS) return { error: errOS };
+  if (!upd || upd.length === 0) {
     return { error: { message: 'This order was modified by someone else. Please reload and try again.' } };
   }
 
-  const { error: errOS } = await supabase
-    .from('ordenes_servicio')
-    .update({ ...datosOS, actualizado_por: usuarioActual?.id })
-    .eq('id', id);
-
-  if (errOS) return { error: errOS };
-
+  // NOTA: en este path el reemplazo de hijos no es atómico con la cabecera.
+  // Activar features.transactionalWrites para atomicidad completa.
   await supabase.from('os_servicios').delete().eq('os_id', id);
-  if (servicios.length > 0) {
-    const filas = servicios.map(s => ({
-      os_id: id,
-      servicio_id: s.servicio_id,
-      cantidad: parseFloat(s.cantidad) || 1,
-      precio_unitario: parseFloat(s.precio_unitario) || 0,
-      notas: s.notas || null
-    }));
-    const { error: errSrv } = await supabase.from('os_servicios').insert(filas);
+  if (filasSrv.length > 0) {
+    const { error: errSrv } = await supabase
+      .from('os_servicios').insert(filasSrv.map(f => ({ ...f, os_id: id })));
     if (errSrv) return { error: errSrv };
   }
 
   await supabase.from('os_asignados').delete().eq('os_id', id);
-  if (asignados.length > 0) {
-    const filas = asignados.map(a => ({
-      os_id: id,
-      empleada_id: a.tipo === 'staff' ? a.id : null,
-      proveedor_id: a.tipo === 'provider' ? a.id : null,
-      rol_en_os: a.rol_en_os || null
-    }));
-    const { error: errAsig } = await supabase.from('os_asignados').insert(filas);
+  if (filasAsig.length > 0) {
+    const { error: errAsig } = await supabase
+      .from('os_asignados').insert(filasAsig.map(f => ({ ...f, os_id: id })));
     if (errAsig) return { error: errAsig };
   }
 

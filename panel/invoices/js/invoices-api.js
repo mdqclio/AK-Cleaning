@@ -2,6 +2,14 @@
 // Funciones de acceso a Supabase para el módulo de Invoices.
 
 import { supabase } from '../../../js/supabase-client.js';
+import { redondear, redondearCampos, sumar, esCero } from '../../../js/money.js';
+
+// Flag: usar RPCs transaccionales (migration 011) cuando esté activo.
+const txOn = () => window.APP_CONFIG?.features?.transactionalWrites === true;
+
+// Campos monetarios a redondear a centavos antes de persistir.
+const CAMPOS_MONEY_LINEA   = ['qty', 'precio_unitario', 'descuento', 'tax_monto', 'total'];
+const CAMPOS_MONEY_FACTURA = ['subtotal', 'tax_total', 'descuento_total', 'total_due'];
 
 // ─── LISTADO ─────────────────────────────────────────
 
@@ -75,12 +83,15 @@ export async function obtenerFactura(id) {
  */
 export async function crearFactura(datosFactura, lineas) {
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { factura: null, error: { message: 'Session expired. Please sign in again.' } };
   const { data: usuarioActual } = await supabase
     .from('usuarios').select('id').eq('auth_id', user.id).single();
 
+  const datos = redondearCampos(datosFactura, CAMPOS_MONEY_FACTURA);
+
   const { data: factura, error: errF } = await supabase
     .from('facturas')
-    .insert({ ...datosFactura, estado: 'borrador', creado_por: usuarioActual?.id })
+    .insert({ ...datos, estado: 'borrador', creado_por: usuarioActual?.id })
     .select()
     .single();
 
@@ -88,12 +99,16 @@ export async function crearFactura(datosFactura, lineas) {
 
   if (lineas.length > 0) {
     const filas = lineas.map((l, idx) => ({
-      ...l,
+      ...redondearCampos(l, CAMPOS_MONEY_LINEA),
       factura_id: factura.id,
       orden: idx + 1
     }));
     const { error: errL } = await supabase.from('factura_lineas').insert(filas);
-    if (errL) return { factura, error: errL };
+    if (errL) {
+      // limpiar la factura huérfana (cabecera sin líneas)
+      await supabase.from('facturas').delete().eq('id', factura.id);
+      return { factura: null, error: errL };
+    }
   }
 
   return { factura, error: null };
@@ -107,30 +122,42 @@ export async function crearFactura(datosFactura, lineas) {
  * @returns {{ error }}
  */
 export async function actualizarFactura(id, datosFactura, lineas, version) {
-  // Optimistic locking
-  const { data: actual } = await supabase
-    .from('facturas').select('version').eq('id', id).single();
-  if (actual?.version !== version) {
+  const datos  = redondearCampos(datosFactura, CAMPOS_MONEY_FACTURA);
+  const filasL = lineas.map((l, idx) => ({
+    ...redondearCampos(l, CAMPOS_MONEY_LINEA),
+    factura_id: id,
+    orden: idx + 1
+  }));
+
+  // Path transaccional (atómico): cabecera + reemplazo de líneas en una txn.
+  if (txOn()) {
+    const { error } = await supabase.rpc('guardar_factura_con_lineas', {
+      p_id: id, p_datos: datos, p_lineas: filasL, p_version: version
+    });
+    return { error };
+  }
+
+  // Path legacy endurecido: el lock optimista se aplica EN el UPDATE (atómico),
+  // no en un SELECT separado, para cerrar el TOCTOU. Si nadie cambió la fila, se
+  // actualiza; si cambió (trigger trg_incrementar_version la subió), 0 filas.
+  const { data: upd, error: errF } = await supabase
+    .from('facturas')
+    .update(datos)
+    .eq('id', id)
+    .eq('version', version)
+    .select('id');
+
+  if (errF) return { error: errF };
+  if (!upd || upd.length === 0) {
     return { error: { message: 'This invoice was modified by someone else. Please reload and try again.' } };
   }
 
-  const { error: errF } = await supabase
-    .from('facturas')
-    .update(datosFactura)
-    .eq('id', id);
-
-  if (errF) return { error: errF };
-
-  // Reemplazar líneas
+  // Reemplazar líneas (no atómico con la cabecera en este path — usar el flag
+  // transaccional para atomicidad completa).
   await supabase.from('factura_lineas').delete().eq('factura_id', id);
 
-  if (lineas.length > 0) {
-    const filas = lineas.map((l, idx) => ({
-      ...l,
-      factura_id: id,
-      orden: idx + 1
-    }));
-    const { error: errL } = await supabase.from('factura_lineas').insert(filas);
+  if (filasL.length > 0) {
+    const { error: errL } = await supabase.from('factura_lineas').insert(filasL);
     if (errL) return { error: errL };
   }
 
@@ -178,26 +205,37 @@ export async function obtenerClienteParaFactura(cliente_id) {
  * @returns {{ numero, error }}
  */
 export async function generarNumero(id, version) {
-  const { data: actual } = await supabase
-    .from('facturas').select('version').eq('id', id).single();
-
-  if (actual?.version !== version) {
-    return { error: { message: 'This invoice was modified by someone else. Please reload and try again.' }, numero: null };
+  // Path transaccional: reserva + asignación con lock de version en un solo RPC.
+  if (txOn()) {
+    const { data: nro, error } = await supabase.rpc('generar_numero_factura_seguro', {
+      p_id: id, p_version: version
+    });
+    if (error) return { error, numero: null };
+    return { numero: nro, error: null };
   }
 
+  // Path legacy endurecido: el lock de version se aplica EN el UPDATE (no en un
+  // SELECT previo) para que dos sesiones concurrentes no asignen dos números a la
+  // misma factura. Si el UPDATE no toca filas, se devuelve el número reservado.
   const { data: nro, error: errNro } = await supabase.rpc('siguiente_numero_factura');
   if (errNro || nro == null) {
     return { error: errNro || { message: 'Could not assign invoice number. Please try again.' }, numero: null };
   }
 
-  const { error: errUpdate } = await supabase
+  const { data: upd, error: errUpdate } = await supabase
     .from('facturas')
     .update({ numero: nro, estado: 'generada' })
-    .eq('id', id);
+    .eq('id', id)
+    .eq('version', version)
+    .eq('estado', 'borrador')
+    .select('id');
 
-  if (errUpdate) {
+  if (errUpdate || !upd || upd.length === 0) {
     await supabase.rpc('devolver_numero_factura', { p_numero: nro });
-    return { error: errUpdate, numero: null };
+    return {
+      error: errUpdate || { message: 'This invoice was modified by someone else. Please reload and try again.' },
+      numero: null
+    };
   }
 
   return { numero: nro, error: null };
@@ -297,6 +335,15 @@ export async function listarPagos(facturaId) {
 
 export async function crearPago({ factura_id, fecha, monto, metodo, referencia, notas }) {
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: { message: 'Session expired. Please sign in again.' } };
+
+  // No permitir pagos sobre facturas en borrador o anuladas (estado stale en UI).
+  const { data: fac } = await supabase
+    .from('facturas').select('estado').eq('id', factura_id).single();
+  if (!fac) return { data: null, error: { message: 'Invoice not found.' } };
+  if (fac.estado === 'borrador') return { data: null, error: { message: 'Cannot register a payment on a draft invoice.' } };
+  if (fac.estado === 'anulada')  return { data: null, error: { message: 'Cannot register a payment on a voided invoice.' } };
+
   const { data: usuarioRow } = await supabase
     .from('usuarios').select('id').eq('auth_id', user.id).single();
 
@@ -305,7 +352,7 @@ export async function crearPago({ factura_id, fecha, monto, metodo, referencia, 
     .insert({
       factura_id,
       fecha: fecha || new Date().toISOString().slice(0, 10),
-      monto: Number(monto),
+      monto: redondear(monto),
       metodo,
       referencia: referencia || null,
       notas: notas || null,
@@ -334,13 +381,15 @@ export async function obtenerResumenPagos(facturaId, totalFactura) {
     .select('monto')
     .eq('factura_id', facturaId);
   if (error) return { resumen: null, error };
-  const total_pagado = (data || []).reduce((acc, p) => acc + Number(p.monto), 0);
-  const saldo = Number(totalFactura) - total_pagado;
+  const total_factura = redondear(totalFactura);
+  const total_pagado  = sumar((data || []).map(p => p.monto));
+  const saldo         = redondear(total_factura - total_pagado);
   return {
     resumen: {
-      total_factura: Number(totalFactura),
+      total_factura,
       total_pagado,
       saldo,
+      saldado: esCero(saldo),          // true si el saldo es cero (tolerancia ½ centavo)
       cantidad_pagos: (data || []).length,
     },
     error: null,

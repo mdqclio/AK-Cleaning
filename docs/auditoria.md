@@ -207,6 +207,19 @@ Estos 6 son la prioridad absoluta. Todos giran alrededor del mismo problema: **e
 
 **Nota:** SCHEMA.md confirma que YA existen `fn_proteger_superadmin` (trigger anti-escalation), RLS `_admin_all` en todas las tablas, y `get_user_rol()` filtra `activo`. Es decir, el peor caso de la auditoría está parcialmente mitigado en la DB — pero **nada de eso está versionado**, por eso `migration 010` (exportar) es la prioridad para poder verificar realmente qué protege la base.
 
+### Bloque 3 — Integridad de datos financieros ✅ CODEADO (cliente live · RPCs pendientes de aplicar)
+Fixes de cliente **incondicionales** (live al pushear, sin dependencia de DB):
+- `js/money.js` — helper de precisión monetaria (redondear/sumar/esCero).
+- `invoices-api.js` — `crearFactura`/`actualizarFactura`/`generarNumero` redondean dinero y aplican el **lock de version EN el UPDATE** (cierra el TOCTOU de numeración y edición). `crearFactura` limpia la factura huérfana si fallan las líneas. `crearPago` rechaza pagos sobre borrador/anulada + redondea. `obtenerResumenPagos` redondea y expone `saldado` con tolerancia de ½ centavo. Null-guards de `getUser()`.
+- `orders-api.js` — `crearOrden` borra la orden si falla un insert de hijos (no más huérfanas); `actualizarOrden` aplica lock de version en el UPDATE; null-guards.
+- `clients-api.js` — `guardarContactos` chequea el error del delete antes de insertar.
+
+Path **transaccional completo** (atomicidad real) detrás de flag:
+- `migration 011` — RPCs `guardar_factura_con_lineas`, `generar_numero_factura_seguro`, `crear_orden_completa`, `actualizar_orden_completa`, `guardar_contactos_cliente` (cada operación en UNA transacción). **Falta aplicar** + verificar nombres de columnas contra SCHEMA.md.
+- `config.js` flag `features.transactionalWrites` (default **false**). Activar tras aplicar 011 y testear → da atomicidad total en el delete+insert.
+
+⏳ Pendiente DB: aplicar `migration 011`, verificar columnas, activar el flag y testear alta/edición de factura y orden.
+
 ---
 
 ## Notas finales

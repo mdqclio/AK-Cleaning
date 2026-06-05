@@ -140,7 +140,20 @@ export async function toggleActivo(id, activo) {
  * @returns {{ error }}
  */
 export async function guardarContactos(cliente_id, contactos) {
-  await supabase.from('cliente_contactos').delete().eq('cliente_id', cliente_id);
+  // Path transaccional (atómico): delete + insert en una sola txn (migration 011).
+  if (window.APP_CONFIG?.features?.transactionalWrites === true) {
+    const { error } = await supabase.rpc('guardar_contactos_cliente', {
+      p_cliente_id: cliente_id,
+      p_contactos: contactos
+    });
+    return { error };
+  }
+
+  // Path legacy: chequear el error del delete antes de insertar para no perder
+  // los contactos viejos si el delete falló (no es atómico — usar el flag para eso).
+  const { error: errDel } = await supabase
+    .from('cliente_contactos').delete().eq('cliente_id', cliente_id);
+  if (errDel) return { error: errDel };
   if (!contactos.length) return { error: null };
 
   const filas = contactos.map(c => ({ ...c, cliente_id }));

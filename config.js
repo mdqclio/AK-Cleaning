@@ -63,7 +63,11 @@ const APP_CONFIG = {
   // admin-create-user (server-side, sin hijack de sesión). Dejar false hasta
   // deployar la función y validar el alta de cada rol con Leonardo.
   features: {
-    serverSideAccounts: false
+    serverSideAccounts: false,
+    // transactionalWrites: cuando true, las escrituras multi-tabla (facturas,
+    // órdenes, contactos) usan los RPCs transaccionales de migration 011.
+    // Dejar false hasta aplicar la migración y validar. Ver docs/auditoria.md → Bloque 3.
+    transactionalWrites: false
   }
 };
 
