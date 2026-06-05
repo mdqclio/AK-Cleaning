@@ -67,6 +67,59 @@ export async function obtenerProveedor(id) {
   return { proveedor: data, error };
 }
 
+// ─── CUENTA DE APP (helper compartido crear/actualizar) ──────────────────────
+
+/**
+ * Crea la cuenta de login (rol=proveedor) para un proveedor y devuelve usuario_id.
+ * Usa la Edge Function si serverSideAccounts está ON; si no, el path legacy signUp.
+ * @returns {{ usuario_id: string|null, error: object|null }}
+ */
+async function crearCuentaProveedor(accountInfo, datos) {
+  if (serverSideAccountsOn()) {
+    const { ok, usuario_id, error } = await crearCuentaAdmin({
+      email:    accountInfo.email,
+      rol:      'proveedor',
+      nombre:   datos.contacto_nombre || datos.nombre_empresa,
+      apellido: '(Provider)',
+      telefono: datos.telefono || null,
+    });
+    return { usuario_id: ok ? usuario_id : null, error: ok ? null : error };
+  }
+
+  // Path legacy (signUp desde el browser).
+  const { error: authError } = await supabase.auth.signUp({
+    email: accountInfo.email,
+    password: generarPasswordAleatoria(),
+    options: { data: { nombre: datos.contacto_nombre || datos.nombre_empresa, apellido: '' } }
+  });
+  if (authError) return { usuario_id: null, error: authError };
+
+  await new Promise(r => setTimeout(r, 500)); // esperar trigger
+
+  const { data: usuario, error: updError } = await supabase
+    .from('usuarios')
+    .update({
+      nombre:   datos.contacto_nombre || datos.nombre_empresa,
+      apellido: '(Provider)',
+      telefono: datos.telefono || null,
+      rol:      'proveedor',
+      idioma:   accountInfo.idioma || 'en',
+      activo:   true
+    })
+    .eq('email', accountInfo.email)
+    .select()
+    .single();
+
+  if (updError || !usuario) {
+    return { usuario_id: null, error: updError || { message: 'Failed to create user record.' } };
+  }
+
+  await supabase.auth.resetPasswordForEmail(accountInfo.email, {
+    redirectTo: `${window.location.origin}${window.APP_CONFIG?.basePath ?? ''}/login.html`
+  });
+  return { usuario_id: usuario.id, error: null };
+}
+
 // ─── CREAR ───────────────────────────────────────────
 
 /**
@@ -76,60 +129,12 @@ export async function obtenerProveedor(id) {
 export async function crearProveedor(datos, conApp = false, accountInfo = null) {
   let usuario_id = null;
 
-  if (conApp && accountInfo?.email && serverSideAccountsOn()) {
-    // Path server-side (Edge Function): crea cuenta auth + fila usuarios(rol=proveedor)
-    // sin hijackear la sesión. Devuelve usuario_id para linkear el proveedor.
-    const { ok, usuario_id: uid, error } = await crearCuentaAdmin({
-      email:    accountInfo.email,
-      rol:      'proveedor',
-      nombre:   datos.contacto_nombre || datos.nombre_empresa,
-      apellido: '(Provider)',
-      telefono: datos.telefono || null,
-    });
-    if (!ok) return { proveedor: null, error };
+  if (conApp && accountInfo?.email) {
+    const { usuario_id: uid, error } = await crearCuentaProveedor(accountInfo, datos);
+    if (error) return { proveedor: null, error };
     usuario_id = uid;
-  } else if (conApp && accountInfo?.email) {
-    // Path legacy (signUp desde el browser).
-    // 1. Crear cuenta auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: accountInfo.email,
-      password: generarPasswordAleatoria(),
-      options: {
-        data: { nombre: datos.contacto_nombre || datos.nombre_empresa, apellido: '' }
-      }
-    });
-    if (authError) return { proveedor: null, error: authError };
-
-    // 2. Esperar trigger de DB
-    await new Promise(r => setTimeout(r, 500));
-
-    // 3. Actualizar fila en usuarios
-    const { data: usuario, error: updError } = await supabase
-      .from('usuarios')
-      .update({
-        nombre:   datos.contacto_nombre || datos.nombre_empresa,
-        apellido: '(Provider)',
-        telefono: datos.telefono || null,
-        rol:      'proveedor',
-        idioma:   accountInfo.idioma || 'en',
-        activo:   true
-      })
-      .eq('email', accountInfo.email)
-      .select()
-      .single();
-
-    if (updError || !usuario) {
-      return { proveedor: null, error: updError || { message: 'Failed to create user record.' } };
-    }
-    usuario_id = usuario.id;
-
-    // 4. Email de bienvenida con link de password
-    await supabase.auth.resetPasswordForEmail(accountInfo.email, {
-      redirectTo: `${window.location.origin}${window.APP_CONFIG?.basePath ?? ''}/login.html`
-    });
   }
 
-  // 5. Crear proveedor
   const { data: proveedor, error: provError } = await supabase
     .from('proveedores')
     .insert({ ...datos, usuario_id })
@@ -141,10 +146,29 @@ export async function crearProveedor(datos, conApp = false, accountInfo = null) 
 
 // ─── ACTUALIZAR ──────────────────────────────────────
 
-export async function actualizarProveedor(id, datos) {
+/**
+ * Actualizar proveedor. Si opcionesApp = { email, idioma } y el proveedor NO
+ * tiene cuenta aún, se la crea y se linkea (cierra el gap del toggle "app access"
+ * en edición). Si ya tiene cuenta, opcionesApp se ignora.
+ * @returns {{ proveedor, error }}
+ */
+export async function actualizarProveedor(id, datos, opcionesApp = null) {
+  let payload = datos;
+
+  // Alta de cuenta en edición: solo si se pidió y el proveedor no tiene una.
+  if (opcionesApp?.email) {
+    const { data: prov } = await supabase
+      .from('proveedores').select('usuario_id').eq('id', id).single();
+    if (!prov?.usuario_id) {
+      const { usuario_id, error: accErr } = await crearCuentaProveedor(opcionesApp, datos);
+      if (accErr) return { proveedor: null, error: accErr };
+      payload = { ...datos, usuario_id };
+    }
+  }
+
   const { data, error } = await supabase
     .from('proveedores')
-    .update(datos)
+    .update(payload)
     .eq('id', id)
     .select()
     .single();

@@ -591,10 +591,13 @@
             if (!this.formData.nombre_empresa?.trim()) {
               this.errorMsg = 'Company name is required.'; return;
             }
-            if (this.usaApp && !this.formData.id && !this.appAccountEmail) {
+            // Necesita email al habilitar app si el proveedor aún no tiene cuenta
+            // (vale tanto en alta como en edición de un proveedor sin usuario_id).
+            const habilitandoApp = this.usaApp && !this.formData.usuario_id;
+            if (habilitandoApp && !this.appAccountEmail) {
               this.errorMsg = 'App login email is required when enabling app access.'; return;
             }
-            if (this.usaApp && !this.formData.id &&
+            if (habilitandoApp &&
                 !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.appAccountEmail)) {
               this.errorMsg = 'Please enter a valid app login email.'; return;
             }
@@ -624,7 +627,10 @@
               ));
             } else {
               datos.activo = this.formData.activo;
-              ({ error } = await actualizarProveedor(this.formData.id, datos));
+              // Si se habilitó app access en edición y no tenía cuenta, crearla.
+              const opcionesApp = (this.usaApp && !this.formData.usuario_id)
+                ? { email: this.appAccountEmail, idioma: this.appAccountIdioma } : null;
+              ({ error } = await actualizarProveedor(this.formData.id, datos, opcionesApp));
             }
 
             this.guardando = false;
