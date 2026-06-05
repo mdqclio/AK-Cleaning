@@ -34,8 +34,9 @@ Detalle por hallazgo en `docs/auditoria.md`.
 
 **Decisiones de producto (sin código):**
 - **11** `orders.costo_final` con estado ≠ completada: hoy se conserva lo tipeado (no se fuerza null). ¿OK?
-- **12** Factura tax/descuento = 0 en cabecera: asumido intencional (V1 sin impuestos). Confirmar.
 - **14** `supabase-js@2` sin pin: pinear/autoalojar requiere test en browser. Diferido.
+
+✅ **12 confirmada (2026-06-05): V1 sin impuestos.** tax/descuento = 0 fijo en cabecera, intencional. Sin cambio de código.
 
 ---
 
