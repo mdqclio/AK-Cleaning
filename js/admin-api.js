@@ -19,12 +19,12 @@ export function serverSideAccountsOn() {
  * NO hijackea la sesión del admin (a diferencia del signUp() cliente).
  *
  * @param {object} payload - { email, rol, nombre, apellido, telefono?, ...empleada }
- * @returns {{ ok: boolean, action_link: string|null, error: object|null }}
+ * @returns {{ ok: boolean, usuario_id: string|null, action_link: string|null, error: object|null }}
  */
 export async function crearCuentaAdmin(payload) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
-    return { ok: false, action_link: null, error: { message: 'No active session' } };
+    return { ok: false, usuario_id: null, action_link: null, error: { message: 'No active session' } };
   }
 
   const base = window.APP_CONFIG.supabase.url.replace(/\/$/, '');
@@ -41,10 +41,10 @@ export async function crearCuentaAdmin(payload) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { ok: false, action_link: null, error: { message: data.error || `HTTP ${res.status}` } };
+      return { ok: false, usuario_id: null, action_link: null, error: { message: data.error || `HTTP ${res.status}` } };
     }
-    return { ok: true, action_link: data.action_link ?? null, error: null };
+    return { ok: true, usuario_id: data.usuario_id ?? null, action_link: data.action_link ?? null, error: null };
   } catch (err) {
-    return { ok: false, action_link: null, error: err };
+    return { ok: false, usuario_id: null, action_link: null, error: err };
   }
 }

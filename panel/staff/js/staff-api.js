@@ -5,6 +5,7 @@
 
 import { supabase } from '../../../js/supabase-client.js';
 import { sanitizarBusqueda } from '../../../js/safe-filter.js';
+import { serverSideAccountsOn, crearCuentaAdmin } from '../../../js/admin-api.js';
 
 // ─── CONSTANTES ──────────────────────────────────────
 
@@ -77,6 +78,17 @@ export async function crearEmpleada(datos) {
     tipo_contrato, fecha_inicio, tipos_servicio, notas, tarifa_hora,
   } = datos;
 
+  // Path server-side (Edge Function): crea cuenta + usuarios + empleadas, atómico,
+  // sin hijackear la sesión del admin. Ver docs/auditoria.md Bloque 2.
+  if (serverSideAccountsOn()) {
+    const { ok, error } = await crearCuentaAdmin({
+      email, rol, nombre, apellido, telefono,
+      tipo_contrato, fecha_inicio, tipos_servicio, notas, tarifa_hora,
+    });
+    return { empleada: null, error: ok ? null : error };
+  }
+
+  // Path legacy (signUp desde el browser).
   let sessionAntes = null;
   try {
     // 1. Guardar sesión actual (admin)

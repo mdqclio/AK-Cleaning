@@ -3,6 +3,7 @@
 
 import { supabase } from '../../../js/supabase-client.js';
 import { sanitizarBusqueda } from '../../../js/safe-filter.js';
+import { serverSideAccountsOn, crearCuentaAdmin } from '../../../js/admin-api.js';
 
 // ─── CONSTANTES ──────────────────────────────────────
 
@@ -75,7 +76,20 @@ export async function obtenerProveedor(id) {
 export async function crearProveedor(datos, conApp = false, accountInfo = null) {
   let usuario_id = null;
 
-  if (conApp && accountInfo?.email) {
+  if (conApp && accountInfo?.email && serverSideAccountsOn()) {
+    // Path server-side (Edge Function): crea cuenta auth + fila usuarios(rol=proveedor)
+    // sin hijackear la sesión. Devuelve usuario_id para linkear el proveedor.
+    const { ok, usuario_id: uid, error } = await crearCuentaAdmin({
+      email:    accountInfo.email,
+      rol:      'proveedor',
+      nombre:   datos.contacto_nombre || datos.nombre_empresa,
+      apellido: '(Provider)',
+      telefono: datos.telefono || null,
+    });
+    if (!ok) return { proveedor: null, error };
+    usuario_id = uid;
+  } else if (conApp && accountInfo?.email) {
+    // Path legacy (signUp desde el browser).
     // 1. Crear cuenta auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: accountInfo.email,

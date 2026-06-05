@@ -4,6 +4,7 @@
 
 import { supabase } from '../../../js/supabase-client.js';
 import { sanitizarBusqueda } from '../../../js/safe-filter.js';
+import { serverSideAccountsOn, crearCuentaAdmin } from '../../../js/admin-api.js';
 
 export const ROLES_GESTIONADOS = ['admin', 'owner', 'compras'];
 
@@ -48,6 +49,13 @@ export async function obtenerUsuario(id) {
 // ─── CREATE ──────────────────────────────────────────
 
 export async function crearUsuario({ email, rol, nombre, apellido, telefono }) {
+  // Path server-side (Edge Function): no hijackea sesión, fija rol en el server.
+  if (serverSideAccountsOn()) {
+    const { ok, error } = await crearCuentaAdmin({ email, rol, nombre, apellido, telefono });
+    return { error: ok ? null : error };
+  }
+
+  // Path legacy (signUp desde el browser) — ver docs/auditoria.md Bloque 2.
   // Guardar sesión actual — signUp reemplaza la sesión con la del nuevo user
   const { data: { session: sessionAntes } } = await supabase.auth.getSession();
 
