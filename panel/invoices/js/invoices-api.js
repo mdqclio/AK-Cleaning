@@ -245,7 +245,10 @@ export async function generarNumero(id, version) {
 
 /**
  * Sube un PDF blob a Storage: facturas/{año}/{numero}.pdf
- * @returns {{ publicUrl, error }}
+ * El bucket `facturas` es PRIVADO (migration 013): no usar getPublicUrl —
+ * los paths son secuenciales y serían enumerables. Se guarda el PATH en
+ * facturas.pdf_url y se genera una signed URL on-demand con urlFirmadaPDF().
+ * @returns {{ path, error }}
  */
 export async function subirPDF(numero, año, blob) {
   const path = `${año}/${numero}.pdf`;
@@ -253,16 +256,27 @@ export async function subirPDF(numero, año, blob) {
     .from('facturas')
     .upload(path, blob, { contentType: 'application/pdf', upsert: true });
 
-  if (errUpload) return { publicUrl: null, error: errUpload };
+  if (errUpload) return { path: null, error: errUpload };
 
-  const { data: { publicUrl } } = supabase.storage
-    .from('facturas')
-    .getPublicUrl(path);
-
-  return { publicUrl, error: null };
+  return { path, error: null };
 }
 
-/** Actualiza pdf_url en la factura después del upload. */
+/**
+ * Genera una signed URL temporal para un PDF del bucket privado `facturas`.
+ * Solo funciona para admin/owner/superadmin (RLS de storage.objects).
+ * @param {string} path  el path guardado en facturas.pdf_url (ej. "2026/1.pdf")
+ * @param {number} ttlSegundos  validez de la URL (default 300s = 5 min)
+ * @returns {{ url, error }}
+ */
+export async function urlFirmadaPDF(path, ttlSegundos = 300) {
+  if (!path) return { url: null, error: { message: 'No PDF path' } };
+  const { data, error } = await supabase.storage
+    .from('facturas')
+    .createSignedUrl(path, ttlSegundos);
+  return { url: data?.signedUrl || null, error };
+}
+
+/** Guarda el PATH del PDF en facturas.pdf_url (no la URL pública). */
 export async function actualizarPdfUrl(id, pdf_url) {
   const { error } = await supabase.from('facturas').update({ pdf_url }).eq('id', id);
   return { error };
