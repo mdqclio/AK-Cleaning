@@ -3,8 +3,8 @@
 Detalle por hallazgo en `docs/auditoria.md`.
 Última actualización: 2026-06-05 · Commits `5de5c95`→`da2f83c` en `main`.
 
-> **Estado: auditoría esencialmente CERRADA.** Queda 1 toggle de dashboard
-> (leaked-password) + 3 decisiones de producto. Todo lo demás resuelto.
+> **Estado: auditoría CERRADA.** Decisiones 10-14 todas resueltas. Queda solo
+> 1 toggle de dashboard (leaked-password) + validación visual en browser.
 > Contexto: VPS Hetzner → GitHub. Nada en producción aún.
 
 ## Estado por bloque
@@ -19,7 +19,7 @@ Detalle por hallazgo en `docs/auditoria.md`.
 | 6 Lógica de negocio | ✅ |
 | Advisor Supabase | ✅ (queda solo leaked-password, dashboard) |
 | Cosmético 15-18 | ✅ |
-| Decisiones | 10 ✅ · 13 ✅ · 11/12/14 abiertas |
+| Decisiones | 10/11/12/13/14 ✅ todas resueltas |
 
 ---
 
@@ -32,11 +32,14 @@ Detalle por hallazgo en `docs/auditoria.md`.
 - Probar alta de cuenta (usuario / empleada / proveedor con app access) → confirmar que la Edge Function `admin-create-user` anda end-to-end.
 - Revisar visualmente: factura (`print.html` con datos de Business Info + $0), Business Info save, checklist doble-click.
 
-**Decisiones de producto (sin código):**
-- **11** `orders.costo_final` con estado ≠ completada: hoy se conserva lo tipeado (no se fuerza null). ¿OK?
-- **14** `supabase-js@2` sin pin: pinear/autoalojar requiere test en browser. Diferido.
+**Decisiones de producto:** ✅ todas resueltas (10-14).
 
+_Histórico de decisiones:_
+_(decisiones 11/12/14 resueltas — ver abajo)_
+
+✅ **11 resuelta (2026-06-05): queda como está** — `costo_final` conserva lo tipeado aunque la orden no esté completada. Sin cambio de código.
 ✅ **12 confirmada (2026-06-05): V1 sin impuestos.** tax/descuento = 0 fijo en cabecera, intencional. Sin cambio de código.
+✅ **14 resuelta (2026-06-05): se deja `supabase-js@2`** — sin pin por ahora. Riesgo bajo; reevaluar si aparece un problema.
 
 ---
 
