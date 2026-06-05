@@ -13,4 +13,10 @@ export const supabase = createClient(url, anon_key, {
   }
 });
 
-window.supabase = supabase;  // disponible en consola para debug
+// Exponer el cliente en consola SOLO en desarrollo local (basePath === '').
+// En producción (GitHub Pages, basePath === '/AK-Cleaning') no se expone:
+// reduce la superficie para exfiltración manual y para la cadena de escalada
+// de privilegios documentada en docs/auditoria.md (hallazgo C1 / supabase-client.js).
+if ((window.APP_CONFIG?.basePath ?? '') === '') {
+  window.supabase = supabase;  // debug local
+}
