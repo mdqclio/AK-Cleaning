@@ -11,9 +11,9 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 - **Idioma**: UI en inglés, código y comentarios en español rioplatense
 
 ## Paths
-- Codespace (acá): `/workspaces/AK-Cleaning`
-- Mac de Leonardo: `/Users/leonardofernandez/Desktop/Ak Cleaning/ak-system`
+- VPS Hetzner (acá, donde trabaja Claude): `/home/clio/dev/AK-Cleaning`
 - Repo: `github.com/mdqclio/AK-Cleaning` (branch `main`)
+- (La Mac de Leonardo ya NO se usa para el flujo de trabajo.)
 
 ## Supabase
 - Project URL: `https://ccdpbiflbewhnidigiin.supabase.co`
@@ -24,13 +24,12 @@ Panel interno para AK Property Management Concierge Services (Miami Beach, FL). 
 - Andrea cliente_id: `15279744-5b1c-4afd-9dcb-bf8747c21d47` (cliente de prueba con propiedad "alfonsina")
 - Timezone: `America/New_York` (Miami DST) en TIMESTAMPTZ
 
-## Workflow Codespaces ↔ Mac
-1. Leonardo edita en Codespaces (vos)
-2. `git add` + `git commit` + `git push` desde acá
-3. Leonardo hace `git pull` en la Mac
-4. Testea en `http://localhost:8000` (Chrome, no Brave — Brave crashea con loops Alpine)
+## Workflow (VPS Hetzner → GitHub)
+1. Claude edita en el VPS Hetzner (acá) → `git add` + `git commit` + `git push`.
+2. Leonardo prueba contra lo que está en `main`.
+3. **Estado:** nada en producción aún, sin uso real.
 
-**Regla**: NO editar en la Mac. Solo `git pull` y testear. La Mac no tiene credenciales push.
+**Testeo:** Chrome (no Brave — crashea con loops Alpine).
 
 ## Decisiones cerradas (NO cuestionar)
 - `/app` único, sin separación core/app (G1 review Opus)
