@@ -230,6 +230,13 @@ Path **transaccional completo** (atomicidad real) detrás de flag:
 
 Sintaxis verificada con `node --check` (13 archivos).
 
+### Bloque 5 — Higiene 🔄 CASI COMPLETO (1 ítem necesita decisión)
+- **Race de auth** en `system/health.html`, `logs.html`, `config.html`: Alpine ahora se importa SOLO después de que `iniciarPanel` confirma rol `superadmin` (`if (!usuario) return`). El `x-init`/`init()` ya no consulta la DB antes del gate. ✅
+- **CDNs pineados** (cierra el supply-chain de `@latest` flotante): `lucide@latest` → `lucide@1.17.0` exacto + **SRI** `sha384` + `crossorigin` (10 archivos); `alpinejs@3.x.x` → `alpinejs@3.14.8` (13 archivos). Sin residual flotante. ✅
+- **`test-pdf.html`** eliminado de prod. ✅
+- ⏳ **Supabase JS** (`@supabase/supabase-js@2` vía skypack ESM): se dejó como está. SRI no aplica a imports ESM dinámicos; bumpear la versión exacta es riesgo funcional. Recomendado a futuro: autoalojar o pinear versión exacta y testear.
+- ⏳ **#18 Datos bancarios en `config.js` (NECESITA DECISIÓN)**: routing/account/SWIFT siguen en el JS público. No se movieron porque requiere decisión + cambio de DB. **Opción recomendada**: tabla `config_empresa` (o `datos_pago`) con RLS que solo permita SELECT a `owner`/`superadmin`, y `print.html` lee de ahí en vez de `config.js`. Alternativa: aceptar que van impresos en la factura igual y documentarlo. Pendiente de tu decisión para implementar.
+
 ---
 
 ## Notas finales
