@@ -7,118 +7,128 @@
   <link rel="stylesheet" href="../../css/base.css" />
   <link rel="stylesheet" href="../../css/components.css" />
   <link rel="stylesheet" href="../css/panel.css" />
+  <script src="../../config.js"></script>
+  <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
   <style>
-    .config-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-lg); margin-bottom: var(--space-md); }
+    [x-cloak] { display: none !important; }
+    .config-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-lg); margin-bottom: var(--space-md); max-width: 880px; }
     .config-section h3 { font-size: var(--text-base); font-weight: 600; color: var(--color-primary); margin-bottom: var(--space-md); padding-bottom: var(--space-sm); border-bottom: 1px solid var(--color-divider); }
     .config-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-divider); gap: var(--space-md); }
     .config-row:last-child { border-bottom: none; padding-bottom: 0; }
     .config-key { font-weight: 500; color: var(--color-primary); font-size: var(--text-sm); min-width: 180px; }
-    .config-val { font-size: var(--text-sm); color: var(--color-text-muted); font-family: monospace; word-break: break-all; }
+    .config-val { font-size: var(--text-sm); color: var(--color-text-muted); font-family: monospace; word-break: break-all; text-align: right; }
     .config-val.redacted { letter-spacing: 2px; color: var(--color-border); }
   </style>
 </head>
 <body>
+  <div class="panel-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="header" id="header"></header>
 
-<div id="panel-shell"></div>
+      <div class="content">
+        <div x-data="configPage()" x-init="init()" x-cloak>
 
-<div id="page-content">
-  <div x-data="configPage()" x-init="init()" class="content-inner">
+          <div class="config-section">
+            <h3>Company</h3>
+            <template x-for="row in company" :key="row.key">
+              <div class="config-row">
+                <span class="config-key" x-text="row.key"></span>
+                <span class="config-val" x-text="row.val"></span>
+              </div>
+            </template>
+          </div>
 
-    <div class="config-section">
-      <h3>Company</h3>
-      <template x-for="row in company" :key="row.key">
-        <div class="config-row">
-          <span class="config-key" x-text="row.key"></span>
-          <span class="config-val" x-text="row.val"></span>
+          <div class="config-section">
+            <h3>Supabase</h3>
+            <template x-for="row in supabaseInfo" :key="row.key">
+              <div class="config-row">
+                <span class="config-key" x-text="row.key"></span>
+                <span class="config-val" :class="row.redacted ? 'redacted' : ''"
+                  x-text="row.redacted ? '••••••••••••••••' : row.val"></span>
+              </div>
+            </template>
+          </div>
+
+          <div class="config-section">
+            <h3>Roles</h3>
+            <template x-for="row in roles" :key="row.key">
+              <div class="config-row">
+                <span class="config-key" x-text="row.key"></span>
+                <span class="config-val" x-text="row.val"></span>
+              </div>
+            </template>
+          </div>
+
+          <div class="config-section">
+            <h3>Runtime</h3>
+            <template x-for="row in runtime" :key="row.key">
+              <div class="config-row">
+                <span class="config-key" x-text="row.key"></span>
+                <span class="config-val" x-text="row.val"></span>
+              </div>
+            </template>
+          </div>
+
         </div>
-      </template>
-    </div>
-
-    <div class="config-section">
-      <h3>Supabase</h3>
-      <template x-for="row in supabaseInfo" :key="row.key">
-        <div class="config-row">
-          <span class="config-key" x-text="row.key"></span>
-          <span class="config-val" :class="row.redacted ? 'redacted' : ''"
-            x-text="row.redacted ? '••••••••••••••••' : row.val"></span>
-        </div>
-      </template>
-    </div>
-
-    <div class="config-section">
-      <h3>Roles</h3>
-      <template x-for="row in roles" :key="row.key">
-        <div class="config-row">
-          <span class="config-key" x-text="row.key"></span>
-          <span class="config-val" x-text="row.val"></span>
-        </div>
-      </template>
-    </div>
-
-    <div class="config-section">
-      <h3>Runtime</h3>
-      <template x-for="row in runtime" :key="row.key">
-        <div class="config-row">
-          <span class="config-key" x-text="row.key"></span>
-          <span class="config-val" x-text="row.val"></span>
-        </div>
-      </template>
-    </div>
-
+      </div>
+    </main>
   </div>
-</div>
 
-<script type="module">
-  import { iniciarPanel } from '../js/panel-shell.js';
-  import CONFIG           from '../../config.js';
+  <script type="module">
+    import { iniciarPanel } from '../js/panel-shell.js';
 
-  window.configPage = function () {
-    return {
-      company: [], supabaseInfo: [], roles: [], runtime: [],
+    (async () => {
+      const usuario = await iniciarPanel({
+        rolesPermitidos: ['superadmin'],
+        itemActivo: 'system-config',
+        tituloHeader: 'Configuration',
+      });
+      if (!usuario) return;
 
-      init() {
-        this.company = [
-          { key: 'Company Name', val: CONFIG.empresa?.nombre || '—' },
-          { key: 'Tagline',      val: CONFIG.empresa?.tagline || '—' },
-          { key: 'Location',     val: CONFIG.empresa?.ciudad || '—' },
-          { key: 'Email',        val: CONFIG.empresa?.email || '—' },
-          { key: 'Phone',        val: CONFIG.empresa?.telefono || '—' },
-        ];
+      const CFG = window.APP_CONFIG || {};
 
-        this.supabaseInfo = [
-          { key: 'Project URL', val: CONFIG.supabase?.url || '—' },
-          { key: 'Anon Key',    val: CONFIG.supabase?.anonKey || '—', redacted: true },
-        ];
+      window.configPage = function () {
+        return {
+          company: [], supabaseInfo: [], roles: [], runtime: [],
 
-        const rolList = CONFIG.roles || {};
-        this.roles = Object.entries(rolList).map(([rol, cfg]) => ({
-          key: rol,
-          val: `redirect → ${cfg.redirect || '—'}`,
-        }));
+          init() {
+            const e = CFG.empresa || {};
+            this.company = [
+              { key: 'Legal name', val: e.nombre_legal || '—' },
+              { key: 'Short name', val: e.nombre_corto || '—' },
+              { key: 'Location',   val: e.direccion   || '—' },
+              { key: 'Website',    val: e.website     || '—' },
+              { key: 'Email',      val: e.email       || '—' },
+              { key: 'Phone',      val: e.telefono    || '—' },
+            ];
 
-        this.runtime = [
-          { key: 'User Agent',   val: navigator.userAgent },
-          { key: 'Language',     val: navigator.language },
-          { key: 'Online',       val: navigator.onLine ? 'Yes' : 'No' },
-          { key: 'Loaded At',    val: new Date().toLocaleString('en-US') },
-        ];
+            this.supabaseInfo = [
+              { key: 'Project URL', val: CFG.supabase?.url || '—' },
+              { key: 'Anon Key',    val: CFG.supabase?.anon_key || '—', redacted: true },
+            ];
 
-        this.$nextTick(() => window.lucide?.createIcons());
-      },
-    };
-  };
+            this.roles = Object.entries(CFG.roles || {}).map(([rol, cfg]) => ({
+              key: rol,
+              val: `redirect → ${cfg.redirect || '—'}`,
+            }));
 
-  // Gate de auth ANTES de arrancar Alpine: no exponer config/estructura hasta
-  // confirmar rol superadmin (cierra la race de la auditoría, Bloque 5).
-  (async () => {
-    const usuario = await iniciarPanel({
-      rolesPermitidos: ['superadmin'],
-      itemActivo: 'system-config',
-      tituloHeader: 'Configuration',
-    });
-    if (!usuario) return;  // redirigió: no arrancar Alpine ni cargar datos
-    await import('https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js');
-  })();
-</script>
+            this.runtime = [
+              { key: 'Language', val: navigator.language },
+              { key: 'Online',   val: navigator.onLine ? 'Yes' : 'No' },
+              { key: 'Loaded At', val: new Date().toLocaleString('en-US') },
+            ];
+
+            this.$nextTick(() => window.lucide?.createIcons());
+          },
+        };
+      };
+
+      const Alpine = (await import('https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/module.esm.js')).default;
+      window.Alpine = Alpine;
+      Alpine.start();
+      setTimeout(() => window.lucide?.createIcons(), 50);
+    })();
+  </script>
 </body>
 </html>
