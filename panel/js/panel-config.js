@@ -39,6 +39,7 @@ export const MENU = [
     seccion: 'Setup',
     items: [
       { id: 'services',   label: 'Services Catalog', icono: 'layers',           href: B + '/panel/services/',     roles: ['superadmin','owner','admin'] },
+      { id: 'empresa',    label: 'Business Info',    icono: 'building',         href: B + '/panel/empresa/',      roles: ['superadmin','owner'] },
       { id: 'users',      label: 'Users',            icono: 'shield-check',     href: B + '/panel/users/',        roles: ['superadmin','owner'] }
     ]
   },

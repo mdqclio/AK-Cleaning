@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Business Info — AK Cleaning</title>
+  <link rel="stylesheet" href="../../css/base.css" />
+  <link rel="stylesheet" href="../../css/components.css" />
+  <link rel="stylesheet" href="../css/panel.css" />
+  <style>
+    .cfg-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-lg); margin-bottom: var(--space-md); }
+    .cfg-section h3 { font-size: var(--text-base); font-weight: 600; color: var(--color-primary); margin-bottom: var(--space-md); padding-bottom: var(--space-sm); border-bottom: 1px solid var(--color-divider); }
+    .cfg-hint { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-md); }
+    .cfg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-md); }
+    .cfg-grid label { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); font-weight: 500; color: var(--color-primary); }
+    .cfg-grid input { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: var(--text-sm); font-family: inherit; }
+    .cfg-sub { font-size: var(--text-sm); font-weight: 600; color: var(--color-primary); margin: var(--space-lg) 0 var(--space-sm); }
+    @media (max-width: 640px) { .cfg-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<div id="panel-shell"></div>
+
+<div id="page-content">
+  <div x-data="empresaPage()" x-init="init()" class="content-inner">
+
+    <div class="cfg-section">
+      <h3>Company &amp; Payment</h3>
+      <div class="cfg-hint">These details appear on every invoice (header, payment box and contact).</div>
+
+      <template x-if="cargando"><div class="cfg-hint">Loading…</div></template>
+
+      <template x-if="!cargando">
+        <div>
+          <div class="cfg-grid">
+            <label>Company name (line 1)<input type="text" x-model="empresa.nombre_linea1"></label>
+            <label>Company name (line 2)<input type="text" x-model="empresa.nombre_linea2"></label>
+            <label>Location<input type="text" x-model="empresa.ciudad"></label>
+            <label>Website<input type="text" x-model="empresa.website"></label>
+            <label>Phone<input type="text" x-model="empresa.telefono"></label>
+            <label>Email<input type="text" x-model="empresa.email"></label>
+          </div>
+
+          <h4 class="cfg-sub">Payment information</h4>
+          <div class="cfg-grid">
+            <label>Make checks payable to<input type="text" x-model="empresa.payable_to"></label>
+            <label>Bank<input type="text" x-model="empresa.banco"></label>
+            <label>Routing number<input type="text" x-model="empresa.routing"></label>
+            <label>Account number<input type="text" x-model="empresa.account"></label>
+            <label>SWIFT code<input type="text" x-model="empresa.swift"></label>
+          </div>
+
+          <h4 class="cfg-sub">Invoice contact (&ldquo;Thank you&rdquo; block)</h4>
+          <div class="cfg-grid">
+            <label>Contact name<input type="text" x-model="empresa.contacto_nombre"></label>
+            <label>Contact phone<input type="text" x-model="empresa.contacto_telefono"></label>
+            <label>Contact email<input type="text" x-model="empresa.contacto_email"></label>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:var(--space-md);margin-top:var(--space-lg);">
+            <button class="btn btn-primary" @click="guardar()" :disabled="guardando"
+              x-text="guardando ? 'Saving…' : 'Save changes'"></button>
+            <span x-show="msg" x-text="msg" :style="msgErr ? 'color:#c0392b' : 'color:#1a8a4a'" style="font-size:var(--text-sm);"></span>
+          </div>
+        </div>
+      </template>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+  import { iniciarPanel } from '../js/panel-shell.js';
+  import { obtenerConfigEmpresa, actualizarConfigEmpresa } from './js/empresa-api.js';
+
+  window.empresaPage = function () {
+    return {
+      empresa: {}, cargando: true, guardando: false, msg: '', msgErr: false,
+
+      async cargar() {
+        this.cargando = true;
+        const { config, error } = await obtenerConfigEmpresa();
+        if (error || !config) { this.msg = 'Could not load company info.'; this.msgErr = true; }
+        else { this.empresa = config; }
+        this.cargando = false;
+      },
+
+      async guardar() {
+        this.guardando = true; this.msg = '';
+        const { error } = await actualizarConfigEmpresa(this.empresa);
+        this.guardando = false;
+        this.msgErr = !!error;
+        this.msg = error ? (error.message || 'Save failed') : 'Saved.';
+      },
+
+      init() {
+        this.cargar();
+        this.$nextTick(() => window.lucide?.createIcons());
+      },
+    };
+  };
+
+  (async () => {
+    const usuario = await iniciarPanel({
+      rolesPermitidos: ['superadmin', 'owner'],
+      itemActivo: 'empresa',
+      tituloHeader: 'Business Info',
+    });
+    if (!usuario) return;
+    await import('https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js');
+  })();
+</script>
+</body>
+</html>

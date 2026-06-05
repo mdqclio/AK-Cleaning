@@ -20,19 +20,9 @@ const APP_CONFIG = {
     website: 'www.akconciergeservices.com',
     email: 'akconciergeservices@gmail.com',
     telefono: '786-253-7983',
-    direccion: 'Miami Beach, FL 33140',
-    contacto_facturas: {
-      nombre: 'Andrea Manca',
-      telefono: '786-253-7983',
-      email: 'andy.flo@hotmail.com'
-    },
-    banco: {
-      nombre: 'Citibank',
-      routing: '266086554',
-      account: '9135063896',
-      swift: 'CITIUS33',
-      payable_to: 'AK Property Management Concierge Services'
-    }
+    direccion: 'Miami Beach, FL 33140'
+    // Datos de pago y contacto de factura → tabla config_empresa (migration 014),
+    // editables en panel/empresa/. NO duplicar acá (config.js es público).
   },
 
   supabase: {
