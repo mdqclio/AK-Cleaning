@@ -3,6 +3,7 @@
 // CRUD completo + dropdowns de clientes/propiedades/servicios/staff/providers.
 
 import { supabase } from '../../../js/supabase-client.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 // Flag: usar RPCs transaccionales (migration 011) cuando esté activo.
 const txOn = () => window.APP_CONFIG?.features?.transactionalWrites === true;
@@ -58,7 +59,7 @@ export async function listarOrdenes({
   }
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     query = query.or(`descripcion.ilike.${s},notas_internas.ilike.${s}`);
   }
 

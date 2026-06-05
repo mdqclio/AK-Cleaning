@@ -66,6 +66,7 @@ export async function obtenerDatosUsuario(auth_id) {
     .from('usuarios')
     .select('*')
     .eq('auth_id', auth_id)
+    .eq('activo', true)   // un usuario desactivado pierde acceso al re-chequear sesión
     .single();
   return data || null;
 }
@@ -75,8 +76,9 @@ export async function obtenerDatosUsuario(auth_id) {
  * @returns {{ ok: boolean, error: string|null }}
  */
 export async function recuperarPassword(email) {
+  const base = window.APP_CONFIG?.basePath ?? '';
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/login.html`
+    redirectTo: `${window.location.origin}${base}/login.html`
   });
   return { ok: !error, error: error ? traducirErrorAuth(error.message) : null };
 }

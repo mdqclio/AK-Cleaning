@@ -4,6 +4,7 @@
 // Datos del rol (tipo_contrato/tipos_servicio/fecha_inicio/notas/tarifa_hora/disponibilidad/docs) en `empleadas`.
 
 import { supabase } from '../../../js/supabase-client.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 // ─── CONSTANTES ──────────────────────────────────────
 
@@ -38,7 +39,7 @@ export async function listarEmpleadas({
     .select(SELECT_EMPLEADA, { count: 'exact' });
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     query = query.or(
       `nombre.ilike.${s},apellido.ilike.${s},telefono.ilike.${s},email.ilike.${s}`,
       { foreignTable: 'usuarios' }

@@ -3,6 +3,7 @@
 
 import { supabase } from '../../../js/supabase-client.js';
 import { redondear, redondearCampos, sumar, esCero } from '../../../js/money.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 // Flag: usar RPCs transaccionales (migration 011) cuando esté activo.
 const txOn = () => window.APP_CONFIG?.features?.transactionalWrites === true;
@@ -37,7 +38,7 @@ export async function listarFacturas({
   if (cliente_id !== 'all') query = query.eq('cliente_id', cliente_id);
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     query = query.or(`descripcion_general.ilike.${s},notas.ilike.${s}`);
   }
 

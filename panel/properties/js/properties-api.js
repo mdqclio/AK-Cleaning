@@ -2,6 +2,7 @@
 // Funciones de acceso a Supabase para propiedades y edificios.
 
 import { supabase } from '../../../js/supabase-client.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 // ─── PROPIEDADES ─────────────────────────────────────
 
@@ -18,7 +19,7 @@ export async function listarPropiedades({
   // Buscar clientes que matcheen el término de búsqueda
   let idsPorCliente = [];
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     const { data: clientesMatch } = await supabase
       .from('clientes')
       .select('id')
@@ -29,7 +30,7 @@ export async function listarPropiedades({
   // Buscar edificios que matcheen el término de búsqueda
   let idsPorEdificio = [];
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     const { data: edifMatch } = await supabase
       .from('edificios')
       .select('id')
@@ -42,7 +43,7 @@ export async function listarPropiedades({
     .select('*, clientes(id, nombre, apellido, razon_social), edificios(id, nombre)', { count: 'exact' });
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     const orParts = [
       `nombre_referencia.ilike.${s}`,
       `direccion_1.ilike.${s}`,
@@ -113,6 +114,7 @@ export async function crearPropiedad(datos) {
  */
 export async function actualizarPropiedad(id, datos) {
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { propiedad: null, error: { message: 'Session expired. Please sign in again.' } };
   const { data: usuarioActual } = await supabase
     .from('usuarios').select('id').eq('auth_id', user.id).single();
 

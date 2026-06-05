@@ -2,6 +2,7 @@
 // Funciones de acceso a Supabase para el módulo de Providers.
 
 import { supabase } from '../../../js/supabase-client.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 // ─── CONSTANTES ──────────────────────────────────────
 
@@ -30,7 +31,7 @@ export async function listarProveedores({
     .select('*, usuarios(id, email, activo)', { count: 'exact' });
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     query = query.or(
       `nombre_empresa.ilike.${s},contacto_nombre.ilike.${s},email.ilike.${s},telefono.ilike.${s}`
     );

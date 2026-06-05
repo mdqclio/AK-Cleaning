@@ -2,6 +2,7 @@
 // Funciones de acceso a Supabase para el catálogo de servicios.
 
 import { supabase } from '../../../js/supabase-client.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 // ─── CONSTANTES ──────────────────────────────────────
 
@@ -37,7 +38,7 @@ export async function listarServicios({ busqueda = '', categoria = 'all', estado
     .order('nombre_en');
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     query = query.or(`nombre_es.ilike.${s},nombre_en.ilike.${s}`);
   }
 

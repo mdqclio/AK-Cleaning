@@ -2,6 +2,7 @@
 // Funciones de acceso a Supabase para el módulo de Clients.
 
 import { supabase } from '../../../js/supabase-client.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 /**
  * Lista clientes con filtros y paginación.
@@ -11,7 +12,7 @@ export async function listarClientes({ busqueda = '', estado = 'all', tipo = 'al
   // Si hay búsqueda, buscar IDs de clientes que matcheen en cliente_contactos
   let idsPorContacto = [];
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     const { data: contactosMatch } = await supabase
       .from('cliente_contactos')
       .select('cliente_id')
@@ -26,7 +27,7 @@ export async function listarClientes({ busqueda = '', estado = 'all', tipo = 'al
     .select('*', { count: 'exact' });
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     // Buscar en campos del cliente O que el ID esté en idsPorContacto
     if (idsPorContacto.length > 0) {
       const idsList = idsPorContacto.map(id => `"${id}"`).join(',');
@@ -95,6 +96,7 @@ export async function obtenerCliente(id) {
  */
 export async function crearCliente(datos) {
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { cliente: null, error: { message: 'Session expired. Please sign in again.' } };
   const { data: usuarioActual } = await supabase
     .from('usuarios').select('id').eq('auth_id', user.id).single();
 
@@ -112,6 +114,7 @@ export async function crearCliente(datos) {
  */
 export async function actualizarCliente(id, datos) {
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { cliente: null, error: { message: 'Session expired. Please sign in again.' } };
   const { data: usuarioActual } = await supabase
     .from('usuarios').select('id').eq('auth_id', user.id).single();
 

@@ -11,11 +11,14 @@ let idiomaActual = 'en';
 export async function setIdioma(lang) {
   idiomaActual = lang;
   localStorage.setItem('idioma', lang);
+  // basePath: '' en localhost, '/AK-Cleaning' en GitHub Pages. La ruta absoluta
+  // '/i18n/...' rompía en GH Pages (subcarpeta) → 404 → traducciones vacías.
+  const base = window.APP_CONFIG?.basePath ?? '';
   try {
-    const res = await fetch(`/i18n/${lang}.json`);
+    const res = await fetch(`${base}/i18n/${lang}.json`);
     traducciones = await res.json();
   } catch (err) {
-    console.warn(`[i18n] No se pudo cargar /i18n/${lang}.json`);
+    console.warn(`[i18n] No se pudo cargar ${base}/i18n/${lang}.json`);
   }
 }
 

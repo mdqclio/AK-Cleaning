@@ -220,6 +220,16 @@ Path **transaccional completo** (atomicidad real) detrás de flag:
 
 ⏳ Pendiente DB: aplicar `migration 011`, verificar columnas, activar el flag y testear alta/edición de factura y orden.
 
+### Bloque 4 — Bugs de robustez ✅ HECHO (todo cliente, live)
+- `js/safe-filter.js` — `sanitizarBusqueda()` neutraliza `,()\\` (inyección de filtro PostgREST). Cableado en los 9 módulos con `.or()`/`.ilike()` de búsqueda (invoices, orders, clients, properties, providers, staff, users, services, checklists).
+- Null-guards de `getUser()` agregados donde faltaban (clients crear/actualizar, properties actualizar; invoices/orders ya en Bloque 3; checklists ya tenía).
+- `auth.js` — `obtenerDatosUsuario` filtra `activo=true` → usuario desactivado pierde acceso al re-chequear sesión.
+- `auth.js` — `recuperarPassword` usa `basePath` en `redirectTo` (reset roto en GH Pages).
+- `i18n.js` — `fetch` usa `basePath` (traducciones 404 en GH Pages).
+- `panel-shell.js` — `escHtml()` escapa nombre/apellido/rol antes de `innerHTML` → cierra XSS almacenado del shell.
+
+Sintaxis verificada con `node --check` (13 archivos).
+
 ---
 
 ## Notas finales

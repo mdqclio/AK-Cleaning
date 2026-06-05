@@ -7,6 +7,19 @@ import { cerrarSesion } from '../../js/auth.js';
 import { menuParaRol } from './panel-config.js';
 
 /**
+ * Escapa HTML para interpolar datos de la DB en innerHTML sin riesgo de XSS.
+ * Un nombre como `<img src=x onerror=...>` se renderiza como texto, no se ejecuta.
+ */
+function escHtml(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Inicializa el shell. Debe llamarse desde cada página del panel
  * pasando el ID del item del menú activo.
  *
@@ -64,10 +77,10 @@ function renderSidebar(usuario, itemActivo) {
     </nav>
 
     <div class="sidebar-user">
-      <div class="user-avatar">${inicial.toUpperCase()}</div>
+      <div class="user-avatar">${escHtml(inicial.toUpperCase())}</div>
       <div class="user-info">
-        <div class="user-name">${usuario.nombre} ${usuario.apellido}</div>
-        <div class="user-role">${labelRol}</div>
+        <div class="user-name">${escHtml(usuario.nombre)} ${escHtml(usuario.apellido)}</div>
+        <div class="user-role">${escHtml(labelRol)}</div>
       </div>
       <button id="btn-logout" class="user-logout" title="Sign out">
         <i data-lucide="log-out"></i>

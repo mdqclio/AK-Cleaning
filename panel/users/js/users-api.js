@@ -3,6 +3,7 @@
 // Excluye: empleadas (módulo Staff), proveedores (módulo Providers), superadmin (solo SQL).
 
 import { supabase } from '../../../js/supabase-client.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 export const ROLES_GESTIONADOS = ['admin', 'owner', 'compras'];
 
@@ -18,7 +19,7 @@ export async function listarUsuarios({
     .in('rol', ROLES_GESTIONADOS);
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     query = query.or(`nombre.ilike.${s},apellido.ilike.${s},email.ilike.${s}`);
   }
 

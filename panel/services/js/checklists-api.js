@@ -2,6 +2,7 @@
 // CRUD de plantillas de checklist y sus items.
 
 import { supabase } from '../../../js/supabase-client.js';
+import { sanitizarBusqueda } from '../../../js/safe-filter.js';
 
 // ─── PLANTILLAS ──────────────────────────────────────
 
@@ -16,7 +17,7 @@ export async function listarPlantillas({ busqueda = '', idioma = 'all', servicio
     .order('nombre');
 
   if (busqueda) {
-    const s = `%${busqueda}%`;
+    const s = `%${sanitizarBusqueda(busqueda)}%`;
     query = query.ilike('nombre', s);
   }
   if (idioma !== 'all') query = query.eq('idioma', idioma);
