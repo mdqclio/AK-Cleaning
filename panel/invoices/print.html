@@ -148,7 +148,7 @@ function fmtD(iso) {
 function esc(s) {
   return String(s || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function buildInvoiceHTML(factura, isPreview) {
@@ -172,8 +172,8 @@ function buildInvoiceHTML(factura, isPreview) {
       <td style="padding:5px 8px;font-size:9px;vertical-align:top;width:15%;">${l?.fecha ? fmtD(l.fecha) : '&nbsp;'}</td>
       <td style="padding:5px 8px;font-size:9px;vertical-align:top;">${l?.descripcion ? esc(l.descripcion) : '&nbsp;'}</td>
       <td style="padding:5px 8px;font-size:9px;text-align:center;vertical-align:top;width:8%;">${l?.qty != null ? Number(l.qty) : '&nbsp;'}</td>
-      <td style="padding:5px 8px;font-size:9px;text-align:right;vertical-align:top;width:14%;">${l?.precio_unitario ? fmtM(l.precio_unitario) : '&nbsp;'}</td>
-      <td style="padding:5px 8px;font-size:9px;text-align:right;vertical-align:top;width:14%;">${l?.total ? fmtM(l.total) : '&nbsp;'}</td>
+      <td style="padding:5px 8px;font-size:9px;text-align:right;vertical-align:top;width:14%;">${l?.precio_unitario != null ? fmtM(l.precio_unitario) : '&nbsp;'}</td>
+      <td style="padding:5px 8px;font-size:9px;text-align:right;vertical-align:top;width:14%;">${l?.total != null ? fmtM(l.total) : '&nbsp;'}</td>
     </tr>`;
   }).join('');
 

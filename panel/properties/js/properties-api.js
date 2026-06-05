@@ -254,9 +254,10 @@ export function formatearDireccion(prop) {
   }
   if (prop.direccion_1) {
     const partes = [prop.direccion_1];
-    if (prop.ciudad) partes.push(prop.ciudad);
-    if (prop.state)  partes.push(prop.state);
-    return partes.join(', ');
+    if (prop.direccion_2) partes.push(prop.direccion_2);
+    if (prop.ciudad)      partes.push(prop.ciudad);
+    if (prop.state)       partes.push(prop.state);
+    return partes.join(', ');   // push condicional → nunca comas sueltas
   }
   return '—';
 }

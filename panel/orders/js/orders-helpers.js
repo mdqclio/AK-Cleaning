@@ -66,9 +66,15 @@ export function datetimeLocalToISO(local) {
   const [fecha, hora] = local.split('T');
   const [y, m, d] = fecha.split('-').map(Number);
   const [h, min] = hora.split(':').map(Number);
-  const utcDate = new Date(Date.UTC(y, m - 1, d, h, min));
-  const miamiOffset = miamiOffsetMillisAt(utcDate);
-  return new Date(utcDate.getTime() - miamiOffset).toISOString();
+  const utcGuess = Date.UTC(y, m - 1, d, h, min);
+  // El offset se muestrea primero en el instante pseudo-UTC (4-5h corrido del
+  // real). Cerca de un cambio de DST esa muestra puede caer del lado equivocado
+  // → 1h de error. Se refina re-muestreando el offset en el instante candidato.
+  const offset1 = miamiOffsetMillisAt(new Date(utcGuess));
+  let instante = utcGuess - offset1;
+  const offset2 = miamiOffsetMillisAt(new Date(instante));
+  if (offset2 !== offset1) instante = utcGuess - offset2;
+  return new Date(instante).toISOString();
 }
 
 function miamiOffsetMillisAt(date) {

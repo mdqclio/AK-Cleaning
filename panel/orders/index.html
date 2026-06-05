@@ -856,14 +856,19 @@
           },
 
           async toggleChecklistItem(item) {
+            if (item._guardando) return;          // evita doble-click re-entrante
+            item._guardando = true;
             const nuevoEstado = !item.completado;
+            item.completado = nuevoEstado;        // optimista: :checked/:style reflejan ya
             const { error } = await toggleItemChecklistOS(item.id, nuevoEstado);
             if (error) {
+              item.completado = !nuevoEstado;     // revertir en fallo
+              item._guardando = false;
               this.mostrarToast('error', traducirError(error));
               return;
             }
             const r = await listarChecklistOS(this.formData.id);
-            this.checklistItems = r.data || [];
+            this.checklistItems = r.data || [];   // lista nueva → _guardando se descarta
           },
 
           async agregarItemManual() {
