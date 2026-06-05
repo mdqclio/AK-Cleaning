@@ -1,87 +1,62 @@
 # Pendientes de la Auditoría — AK Property Management
 
-Resumen accionable de lo que FALTA tras la auditoría (ver `docs/auditoria.md` para el detalle de cada hallazgo).
-Última actualización: 2026-06-05 · Commits `5de5c95`→`3df33a4` en `main`.
+Resumen accionable tras la auditoría (detalle por hallazgo en `docs/auditoria.md`).
+Última actualización: 2026-06-05 · Commits `5de5c95`→`6bbc86c` en `main`.
 
-## Estado: qué ya está live vs qué falta
+## Estado por bloque
 
-| Bloque | Live en prod | Falta |
-|--------|:---:|---|
-| 1 Escalada de privilegios | ✅ migraciones 008/009 aplicadas | solo decisión Sign Ups (item 1) |
-| 2 RLS + creación server-side | ✅ snapshot 010 exportado/verificado | deploy Edge Function, cutover (6-7) |
-| 3 Integridad financiera | ✅ 011 aplicado + flag ON, testeado | — nada |
-| 4 Robustez | ✅ | — nada |
-| 5 Higiene | ✅ | decisión datos bancarios |
-| 6 Lógica de negocio | ✅ | 4 ítems con decisión |
+| Bloque | Estado |
+|--------|--------|
+| 1 Escalada de privilegios | ✅ (queda solo: apagar Sign Ups tras el cutover) |
+| 2 RLS + creación server-side | ✅ Edge Function deployada + flag ON · falta test browser + Sign Ups OFF |
+| 3 Integridad financiera | ✅ cerrado (testeado) |
+| 4 Robustez | ✅ |
+| 5 Higiene | ✅ |
+| 6 Lógica de negocio | ✅ |
+| Advisor Supabase (nuevos) | ✅ (queda: leaked-password ON, dashboard) |
+| Cosmético 15-18 | ✅ |
+| Decisiones 10-14 | 10 ✅ · 13 ✅ · 11/12/14 abiertas |
 
-Todo lo marcado ✅ ya protege/funciona. **Lo bloqueante restante es CLI/dashboard** (Edge Function + Auth settings).
-
-## ✅ HECHO en esta tanda (vía MCP Supabase + test Leonardo)
-- **008** aplicado — guards en RPCs post-signup (anti escalada).
-- **009** aplicado — anti account-takeover por colisión de email.
-- **010** exportado y verificado → `migrations/010_rls_policies_snapshot.sql` (30 tablas RLS ON, 58 policies, funciones, triggers).
-- **011** aplicado — RPCs transaccionales. Bug encontrado y corregido: `crear_orden_completa` insertaba NULL en columnas con DEFAULT NOT NULL (`id/numero/version/estado`).
-- **Item 9**: `features.transactionalWrites=true` activado y testeado OK en browser (5 escrituras: crear/editar orden, crear factura, generar número, editar contactos cliente).
-- **012** aplicado — hardening advisor: `SET search_path` en 7 funcs + `REVOKE EXECUTE` en 8 trigger funcs.
-- **013** aplicado — bucket `facturas` privado + signed URLs (fuga crítica de PDFs cerrada).
-- **Cosmético 15-18** corregido (`d9ce910`).
-- **Cutover wiring (item 7)** — `crear*` cableadas a la Edge Function detrás del flag (`67b6e20`). Falta deploy + activar flag + test.
+**Nota de contexto:** el proyecto vive en VPS Hetzner → GitHub. Nada en producción aún, sin uso real. Claude trabaja directo en el VPS (commit+push). El Mac no se usa.
 
 ---
 
-## 🔴 BLOQUEANTE
-1. **Verificar signup público**: Auth → Providers → Email → ¿"Sign Ups" ON? Dejarlo ON (lo usa el alta actual) hasta el cutover de Bloque 2. → decisión tuya.
-2. ✅ **008 aplicado** — guards en RPCs post-signup.
-3. ✅ **009 aplicado** — cierra el account-takeover por colisión de email.
+## ✅ HECHO (vía MCP Supabase + código, esta tanda)
 
-## 🟠 Bloque 2 — Versionar RLS + creación server-side
-
-4. ✅ **010 exportado** → `migrations/010_rls_policies_snapshot.sql` commiteado.
-5. ✅ **Checklist verificado**: `usuarios`/`facturas`/`factura_lineas` RLS estricta OK; `fn_proteger_superadmin` + RLS bloquean self-promotion a superadmin (residual empleada→owner vía RPC cierra recién con cutover); IDOR de `print.html` cerrado (facturas SELECT solo admin).
-6. **Deploy de la Edge Function** ⬅️ TUYO (CLI): `supabase functions deploy admin-create-user --project-ref ccdpbiflbewhnidigiin` (ver `supabase/functions/admin-create-user/README.md`).
-7. **Cutover de creación de cuentas** (supervisado, con testeo de Leonardo):
-   - ✅ cableado `crearUsuario`/`crearEmpleada`/`crearProveedor` → `crearCuentaAdmin()` (commit `67b6e20`, detrás del flag).
-   - ⬅️ TUYO: tras el deploy (6), poner `config.js: features.serverSideAccounts = true` y probar alta de cada rol (admin/empleada/proveedor/compras) en browser.
-   - ⬅️ TUYO: si OK, **deshabilitar Sign Ups públicos** (Auth → Email) → cierra el residual empleada→owner.
-   - opcional (lo hago yo por MCP cuando confirmes): revocar `EXECUTE` de los RPCs `*_post_signup` a `authenticated`.
-
-## 🟠 Bloque 3 — Atomicidad financiera ✅ CERRADO
-8. ✅ **011 aplicado** (columnas verificadas vs DB real; bug `crear_orden_completa` corregido).
-9. ✅ **`transactionalWrites=true`** activado y testeado OK.
-
-## ➕ Hallazgos NUEVOS del advisor de Supabase (no estaban en la auditoría original)
-- ✅ **`function_search_path_mutable`** — 7 funcs pineadas con `SET search_path` (012).
-- ✅ **Trigger funcs ejecutables como RPC** — `REVOKE EXECUTE` a anon/authenticated en 8 funcs (012). Helpers RLS/counters/`*_post_signup` se dejan a propósito.
-- ✅ **Bucket `facturas`** — era público con paths secuenciales (`{año}/{numero}.pdf`) → descarga enumerada de toda la facturación sin auth. Cerrado (013): bucket privado, 10MB, solo PDF, SELECT admin-only, `subirPDF` guarda path + `urlFirmadaPDF` (signed URLs). **El más serio de toda la auditoría.**
-- ⬅️ TUYO: **`auth_leaked_password_protection` OFF** → activar en Auth → Password (HaveIBeenPwned), 1 click.
-
-## 🟢 Backlog cosmético ✅ CERRADO (15-18)
-- 15 print.html: `esc()` escapa `'`; precio/total muestran $0 (`!= null`).
-- 16 orders `toggleChecklistItem`: guard re-entrante + update optimista.
-- 17 `datetimeLocalToISO`: re-muestrea offset → corrige borde DST.
-- 18 properties `formatearDireccion`: incluye `direccion_2` (ya sin comas sueltas).
+- **008** — guards en RPCs post-signup (anti escalada).
+- **009** — anti account-takeover por colisión de email.
+- **010** — snapshot real de seguridad → `migrations/010_rls_policies_snapshot.sql` (30 tablas RLS ON, 58 policies, funciones, triggers). Checklist verificado.
+- **011** — RPCs transaccionales. Bug `crear_orden_completa` (NULL en columnas DEFAULT NOT NULL) encontrado y corregido.
+- **Item 9** — `transactionalWrites=true`, testeado OK en browser.
+- **012** — hardening advisor: `SET search_path` en 7 funcs + `REVOKE EXECUTE` en 8 trigger funcs.
+- **013** — bucket `facturas` privado + signed URLs (**fuga crítica de PDFs** cerrada: era público con paths secuenciales `{año}/{numero}.pdf` → descarga enumerada sin auth).
+- **014** — tabla `config_empresa` + página **Business Info** (decisión 10): datos de empresa/pago configurables desde UI, fuera del `config.js` público.
+- **Cosmético 15-18** corregido.
+- **Edge Function `admin-create-user` DEPLOYADA** (v1, ACTIVE, verify_jwt=true) + `crear*` cableadas + `serverSideAccounts=true`.
+- **Decisión 13** — toggle "app access" en edición de provider ahora crea la cuenta.
 
 ---
 
-## 🤔 Decisiones tuyas (no son bugs claros)
+## ⬅️ QUEDA — solo tuyo (browser / dashboard)
 
-10. **Datos bancarios en `config.js` público** (routing/account/SWIFT). Recomendado: tabla `config_empresa`/`datos_pago` con RLS solo `owner`/`superadmin`, y `print.html` lee de ahí. Alternativa: aceptar (van impresos en la factura igual). → **¿Implementar la tabla?**
-11. **`orders` `costo_final` cuando estado ≠ completada**: forzar null borraría lo que el usuario tipeó. → decisión UX.
-12. **Factura: tax/descuento siempre 0 en cabecera**: probablemente intencional (V1 sin impuestos). → confirmar.
-13. **Providers: toggle "app access" editable en edición sin efecto**: feature gap (falta soportar alta de cuenta en `actualizarProveedor`). → ¿implementar o deshabilitar el toggle en edición?
-14. **`supabase-js@2` sin pin/SRI**: ESM dinámico no soporta SRI. A futuro: autoalojar o pinear versión exacta y testear.
+1. **Test de alta de cuentas** (VPS, con un owner logueado): crear usuario / empleada / proveedor con app access. Debe crear la cuenta sin desloguearte y mostrar el link de invitación.
+   - ⚠️ `usuarios` tiene 0 filas — quizá primero haya que crear el primer owner/superadmin por SQL para poder loguearte.
+2. **Sign Ups OFF** (tras test OK): Auth → Providers → Email → "Allow new users to sign up" = off. Cierra el residual empleada→owner.
+3. **Leaked-password protection ON**: Auth → Password (HaveIBeenPwned), 1 click.
+4. **Test visual** del trabajo de esta tanda: factura (`print.html` $0 + datos de Business Info), checklist doble-click, Business Info save.
 
-(Cosmético 15-18 ✅ cerrado — ver sección de advisors arriba.)
+Opcional (lo hace Claude por MCP cuando confirmes el test): revocar `EXECUTE` de los RPCs `*_post_signup` a `authenticated` (quedan obsoletos con la Edge Function).
 
 ---
 
-## Qué queda
-**Solo tuyo (CLI/dashboard):**
-1. Deploy Edge Function `admin-create-user` (item 6).
-2. Tras deploy: `serverSideAccounts=true` + test alta de cada rol → Sign Ups OFF (item 7 + item 1).
-3. Activar leaked-password protection (Auth → Password).
+## 🤔 Decisiones abiertas
 
-**Decisiones (10-14)** cuando quieras — varias las puede implementar Claude:
-- 10 datos bancarios → tabla `datos_pago` con RLS (Claude lo hace si decidís).
-- 13 toggle "app access" en edición de provider → implementar o deshabilitar.
-- 11 costo_final UX · 12 confirmar tax V1=0 · 14 pin supabase-js (a futuro).
+- **11 — `orders.costo_final` cuando estado ≠ completada.** Hoy NO se fuerza a null (se conserva lo tipeado). ¿Está bien así, o querés limpiarlo al cambiar de estado? → decisión UX, sin código por ahora.
+- **12 — Factura: tax/descuento siempre 0 en cabecera.** Asumido intencional (V1 sin impuestos). → confirmá y se cierra.
+- **14 — `supabase-js@2` sin pin/SRI.** Diferido: pinear a versión exacta o autoalojar **requiere testear en browser** (toda la app depende de ese import). Hacerlo cuando haya entorno de test.
+
+---
+
+## Decisiones ya resueltas
+- **10 — Datos de empresa/pago:** ✅ tabla `config_empresa` + página Business Info (Setup, owner/superadmin). `config.js` limpio.
+- **13 — Toggle app access provider en edición:** ✅ implementado (crea+linkea cuenta).
