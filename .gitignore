@@ -1,0 +1,36 @@
+# ── Secrets / env ──────────────────────────────────────────────
+# config.js es PÚBLICO por diseño (solo trae la anon key de Supabase).
+# Cualquier secreto real (service_role, tokens) va en env vars del
+# servidor (Supabase Edge Functions), nunca en el árbol.
+.env
+.env.*
+*.env
+.envrc
+
+# Claves / credenciales
+*.key
+*.pem
+*.p12
+*.pfx
+*service*account*.json
+*serviceaccount*.json
+*credentials*.json
+secrets.json
+.supabase/
+
+# ── OS / editor ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ── Logs / temp ────────────────────────────────────────────────
+*.log
+npm-debug.log*
+node_modules/
+.cache/
+tmp/
